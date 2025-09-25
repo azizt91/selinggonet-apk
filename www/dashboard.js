@@ -3,59 +3,66 @@ import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
 
 /**
- * Initializes Push Notifications safely, only on native platforms.
+ * Initializes Push Notifications safely with debug alerts.
  */
 const initializePushNotifications = async () => {
   try {
-    // Dynamically import Capacitor to check the platform safely
+    alert("DEBUG 1: Memulai inisialisasi notifikasi.");
+
     const { Capacitor } = await import('@capacitor/core');
 
-    // Only run on native platforms
     if (Capacitor.isNativePlatform()) {
-      const { PushNotifications } = await import('@capacitor/push-notifications');
+      alert("DEBUG 2: Platform native terdeteksi.");
 
-      // Listener for successful registration
-      await PushNotifications.addListener('registration', async (token) => {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      alert("DEBUG 3: Plugin PushNotifications berhasil dimuat.");
+
+      // Add all listeners first
+      PushNotifications.addListener('registration', async (token) => {
         console.info('Device registration token: ', token.value);
+        alert("DEBUG: Berhasil mendapatkan token registrasi.");
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase.from('device_tokens').upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
-          console.log('Device token saved successfully.');
         }
-      });
+      }).catch(e => alert(`Listener Error: ${e.message}`));
 
-      // Listener for registration error
-      await PushNotifications.addListener('registrationError', (err) => {
+      PushNotifications.addListener('registrationError', (err) => {
         console.error('Push registration error: ', err.error);
-      });
+        alert(`DEBUG ERROR: Gagal registrasi - ${err.error}`);
+      }).catch(e => alert(`Listener Error: ${e.message}`));
 
-      // Listener for received notification when app is in foreground
-      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('Push notification received: ', notification);
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
         alert(`Notifikasi Baru: ${notification.title}\n${notification.body}`);
-      });
+      }).catch(e => alert(`Listener Error: ${e.message}`));
 
-      // Listener for action performed on a notification
-      await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
         console.log('Push notification action performed', notification.actionId, notification.inputValue);
-      });
+      }).catch(e => alert(`Listener Error: ${e.message}`));
 
       // Check permissions and register
+      alert("DEBUG 4: Mengecek status izin.");
       let permStatus = await PushNotifications.checkPermissions();
+      alert(`DEBUG 5: Status izin saat ini adalah: ${permStatus.receive}`);
+
       if (permStatus.receive === 'prompt') {
+        alert("DEBUG 6: Izin berstatus 'prompt'. Meminta izin sekarang...");
         permStatus = await PushNotifications.requestPermissions();
-      }
-      if (permStatus.receive === 'granted') {
-        await PushNotifications.register();
-      } else {
-        console.warn('User denied push permissions!');
+        alert(`DEBUG 7: Status izin baru setelah diminta: ${permStatus.receive}`);
       }
 
-      console.log("Push notifications initialized for native platform.");
+      if (permStatus.receive === 'granted') {
+        alert("DEBUG 8: Izin diberikan. Melakukan registrasi...");
+        await PushNotifications.register();
+      } else {
+        alert("DEBUG: Izin tidak diberikan (status: " + permStatus.receive + "). Tidak melakukan registrasi.");
+      }
+
+    } else {
+      alert("DEBUG: Bukan platform native. Inisialisasi notifikasi dilewati.");
     }
   } catch (e) {
-    // This block will be hit in a normal web browser where @capacitor/core doesn't exist.
-    console.log('Push notifications not initialized (not a native app or error occurred).');
+    alert(`DEBUG ERROR: Terjadi kesalahan besar! Pesan: ${e.message}`);
   }
 };
 
