@@ -3,66 +3,57 @@ import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
 
 /**
- * Initializes Push Notifications safely with debug alerts.
+ * Initializes Push Notifications safely, only on native platforms.
  */
 const initializePushNotifications = async () => {
   try {
-    alert("DEBUG 1: Memulai inisialisasi notifikasi.");
-
     const { Capacitor } = await import('@capacitor/core');
 
     if (Capacitor.isNativePlatform()) {
-      alert("DEBUG 2: Platform native terdeteksi.");
-
       const { PushNotifications } = await import('@capacitor/push-notifications');
-      alert("DEBUG 3: Plugin PushNotifications berhasil dimuat.");
 
-      // Add all listeners first
-      PushNotifications.addListener('registration', async (token) => {
+      // Add all listeners
+      await PushNotifications.addListener('registration', async (token) => {
         console.info('Device registration token: ', token.value);
-        alert("DEBUG: Berhasil mendapatkan token registrasi.");
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from('device_tokens').upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
+          const { error } = await supabase.from('device_tokens').upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
+          if (error) {
+            console.error('Failed to save device token:', error);
+          } else {
+            console.log('Device token saved successfully.');
+          }
         }
-      }).catch(e => alert(`Listener Error: ${e.message}`));
+      });
 
-      PushNotifications.addListener('registrationError', (err) => {
+      await PushNotifications.addListener('registrationError', (err) => {
         console.error('Push registration error: ', err.error);
-        alert(`DEBUG ERROR: Gagal registrasi - ${err.error}`);
-      }).catch(e => alert(`Listener Error: ${e.message}`));
+      });
 
-      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Push notification received: ', notification);
         alert(`Notifikasi Baru: ${notification.title}\n${notification.body}`);
-      }).catch(e => alert(`Listener Error: ${e.message}`));
+      });
 
-      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
         console.log('Push notification action performed', notification.actionId, notification.inputValue);
-      }).catch(e => alert(`Listener Error: ${e.message}`));
+      });
 
       // Check permissions and register
-      alert("DEBUG 4: Mengecek status izin.");
       let permStatus = await PushNotifications.checkPermissions();
-      alert(`DEBUG 5: Status izin saat ini adalah: ${permStatus.receive}`);
-
       if (permStatus.receive === 'prompt') {
-        alert("DEBUG 6: Izin berstatus 'prompt'. Meminta izin sekarang...");
         permStatus = await PushNotifications.requestPermissions();
-        alert(`DEBUG 7: Status izin baru setelah diminta: ${permStatus.receive}`);
       }
-
       if (permStatus.receive === 'granted') {
-        alert("DEBUG 8: Izin diberikan. Melakukan registrasi...");
         await PushNotifications.register();
       } else {
-        alert("DEBUG: Izin tidak diberikan (status: " + permStatus.receive + "). Tidak melakukan registrasi.");
+        console.warn('User denied push permissions!');
       }
-
-    } else {
-      alert("DEBUG: Bukan platform native. Inisialisasi notifikasi dilewati.");
+      
+      console.log("Push notifications initialized for native platform.");
     }
   } catch (e) {
-    alert(`DEBUG ERROR: Terjadi kesalahan besar! Pesan: ${e.message}`);
+    console.log('Push notifications not initialized (not a native app or error occurred).');
   }
 };
 
