@@ -17,6 +17,7 @@
   "author": "Selinggonet",
   "license": "MIT",
   "dependencies": {
+    "@capacitor/android": "^6.0.0",
     "crypto": "1.0.1",
     "googleapis": "^126.0.1"
   },
@@ -24,6 +25,8 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
     "supabase": "^2.40.7"
   }
 }
