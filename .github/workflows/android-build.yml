@@ -32,6 +32,9 @@ jobs:
     - name: Sync Capacitor project
       run: npx cap sync android # Sinkronisasi aset web ke proyek Android
 
+    - name: Make gradlew executable
+      run: chmod +x android/gradlew
+
     - name: Build debug APK
       run: |
         cd android
