@@ -1,94 +1,67 @@
 // dashboard.js (Supabase version)
 import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
-import { PushNotifications } from '@capacitor/push-notifications';
-import { Capacitor } from '@capacitor/core';
 
-// --- Push Notifications ---
-const addListeners = async () => {
-  await PushNotifications.addListener('registration', async (token) => {
-    console.info('Device registration token: ', token.value);
+/**
+ * Initializes Push Notifications safely, only on native platforms.
+ */
+const initializePushNotifications = async () => {
+  try {
+    // Dynamically import Capacitor to check the platform safely
+    const { Capacitor } = await import('./@capacitor/core.js');
 
-    // Dapatkan user ID saat ini
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      try {
-        // Simpan token ke database.
-        // `upsert` akan memasukkan baris baru jika belum ada,
-        // atau tidak melakukan apa-apa jika token yang sama untuk user yang sama sudah ada.
-        const { error } = await supabase
-          .from('device_tokens')
-          .upsert(
-            { 
-              user_id: user.id, 
-              token: token.value 
-            },
-            { onConflict: 'user_id, token' } // Periksa duplikat berdasarkan kombinasi user_id dan token
-          );
-
-        if (error) {
-          console.error('Gagal menyimpan token perangkat:', error);
-        } else {
-          console.log('Token perangkat berhasil disimpan ke database.');
-        }
-      } catch (e) {
-        console.error('Terjadi kesalahan saat menyimpan token:', e);
-      }
-    }
-  });
-
-  await PushNotifications.addListener('registrationError', err => {
-    console.error('Registration error: ', err.error);
-  });
-
-  await PushNotifications.addListener('pushNotificationReceived', notification => {
-    console.log('Push notification received: ', notification);
-    // Menampilkan alert sederhana saat notifikasi diterima ketika aplikasi terbuka.
-    alert(`Notifikasi Baru: ${notification.title}\n${notification.body}`);
-  });
-
-  await PushNotifications.addListener('pushNotificationActionPerformed', notification => {
-    console.log('Push notification action performed', notification.actionId, notification.inputValue);
-    // Aksi saat notifikasi di-tap. Anda bisa navigasi ke halaman tertentu.
-    // if (notification.notification.data.url) {
-    //   window.location.href = notification.notification.data.url;
-    // }
-  });
-}
-
-const registerNotifications = async () => {
-  let permStatus = await PushNotifications.checkPermissions();
-
-  if (permStatus.receive === 'prompt') {
-    permStatus = await PushNotifications.requestPermissions();
-  }
-
-  if (permStatus.receive !== 'granted') {
-    console.warn('User menolak izin notifikasi!');
-    return;
-  }
-
-  await PushNotifications.register();
-}
-
-const initPush = async () => {
-    // Hanya jalankan di platform native (Android/iOS), bukan di web browser
+    // Only run on native platforms
     if (Capacitor.isNativePlatform()) {
-        try {
-            await addListeners();
-            await registerNotifications();
-        } catch(err) {
-            console.error("Gagal menginisialisasi Push Notification:", err);
-        }
-    }
-}
-// --- End Push Notifications ---
+      const { PushNotifications } = await import('./@capacitor/push-notifications.js');
 
+      // Listener for successful registration
+      await PushNotifications.addListener('registration', async (token) => {
+        console.info('Device registration token: ', token.value);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('device_tokens').upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
+          console.log('Device token saved successfully.');
+        }
+      });
+
+      // Listener for registration error
+      await PushNotifications.addListener('registrationError', (err) => {
+        console.error('Push registration error: ', err.error);
+      });
+
+      // Listener for received notification when app is in foreground
+      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Push notification received: ', notification);
+        alert(`Notifikasi Baru: ${notification.title}\n${notification.body}`);
+      });
+
+      // Listener for action performed on a notification
+      await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        console.log('Push notification action performed', notification.actionId, notification.inputValue);
+      });
+
+      // Check permissions and register
+      let permStatus = await PushNotifications.checkPermissions();
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
+      if (permStatus.receive === 'granted') {
+        await PushNotifications.register();
+      } else {
+        console.warn('User denied push permissions!');
+      }
+
+      console.log("Push notifications initialized for native platform.");
+    }
+  } catch (e) {
+    // This block will be hit in a normal web browser where @capacitor/core doesn't exist.
+    console.log('Push notifications not initialized (not a native app or error occurred).');
+  }
+};
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // Inisialisasi Push Notifications
-    initPush();
+    // Safely initialize Push Notifications
+    initializePushNotifications();
 
     // Ensure the user is an ADMIN, otherwise redirect.
     const user = await requireRole('ADMIN');
@@ -104,9 +77,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             const notificationsJSON = localStorage.getItem('selinggonet_notifications');
             const notifications = notificationsJSON ? JSON.parse(notificationsJSON) : [];
-            
             const hasUnread = notifications.some(n => !n.read);
-
             if (hasUnread) {
                 badge.classList.remove('hidden');
             } else {
@@ -141,7 +112,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             if (profile) {
                 userGreeting.textContent = `Hallo, ${profile.full_name || 'Admin'}`;
-                
                 if (profile.photo_url && userAvatar) {
                     userAvatar.style.backgroundImage = `url('${profile.photo_url}')`;
                 } else if (userAvatar) {
@@ -166,10 +136,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     populateFilters();
     initializeEventListeners();
-    
     showLoading();
     showChartsLoading();
-    
     fetchDashboardStats();
 
     function populateFilters() {
@@ -216,9 +184,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 p_year: year_filter
             });
 
-            if (error) {
-                throw new Error(`Supabase RPC Error: ${error.message}`);
-            }
+            if (error) throw error;
 
             const { data: chartsData, error: chartsError } = await supabase.rpc('get_dashboard_charts_data', {
                 p_months: 6
