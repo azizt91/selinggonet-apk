@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Selinggonet ISP</string>
-    <string name="title_activity_main">Selinggonet ISP</string>
+    <string name="app_name">Selinggonet</string>
+    <string name="title_activity_main">Selinggonet</string>
     <string name="package_name">com.selinggonet.ispmgmt</string>
     <string name="custom_url_scheme">com.selinggonet.ispmgmt</string>
 </resources>
