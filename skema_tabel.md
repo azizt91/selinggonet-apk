@@ -2,6 +2,14 @@ Skema tabel di Supabase dibawah ini
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.device_tokens (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL,
+  token text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT device_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT device_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.expenses (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   description text NOT NULL,
@@ -53,6 +61,8 @@ CREATE TABLE public.profiles (
   ip_static_pppoe text,
   created_at timestamp with time zone DEFAULT now(),
   churn_date date,
+  package_id integer,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT profiles_package_id_fkey FOREIGN KEY (package_id) REFERENCES public.packages(id)
 );

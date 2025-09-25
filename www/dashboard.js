@@ -6,10 +6,36 @@ import { Capacitor } from '@capacitor/core';
 
 // --- Push Notifications ---
 const addListeners = async () => {
-  await PushNotifications.addListener('registration', token => {
-    console.info('Registration token: ', token.value);
-    // TODO: Kirim token ini ke server Anda untuk disimpan.
-    // Anda akan menggunakan token ini untuk mengirim notifikasi ke perangkat ini.
+  await PushNotifications.addListener('registration', async (token) => {
+    console.info('Device registration token: ', token.value);
+
+    // Dapatkan user ID saat ini
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      try {
+        // Simpan token ke database.
+        // `upsert` akan memasukkan baris baru jika belum ada,
+        // atau tidak melakukan apa-apa jika token yang sama untuk user yang sama sudah ada.
+        const { error } = await supabase
+          .from('device_tokens')
+          .upsert(
+            { 
+              user_id: user.id, 
+              token: token.value 
+            },
+            { onConflict: 'user_id, token' } // Periksa duplikat berdasarkan kombinasi user_id dan token
+          );
+
+        if (error) {
+          console.error('Gagal menyimpan token perangkat:', error);
+        } else {
+          console.log('Token perangkat berhasil disimpan ke database.');
+        }
+      } catch (e) {
+        console.error('Terjadi kesalahan saat menyimpan token:', e);
+      }
+    }
   });
 
   await PushNotifications.addListener('registrationError', err => {
