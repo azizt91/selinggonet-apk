@@ -1,8 +1,69 @@
 // dashboard.js (Supabase version)
 import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
+
+// --- Push Notifications ---
+const addListeners = async () => {
+  await PushNotifications.addListener('registration', token => {
+    console.info('Registration token: ', token.value);
+    // TODO: Kirim token ini ke server Anda untuk disimpan.
+    // Anda akan menggunakan token ini untuk mengirim notifikasi ke perangkat ini.
+  });
+
+  await PushNotifications.addListener('registrationError', err => {
+    console.error('Registration error: ', err.error);
+  });
+
+  await PushNotifications.addListener('pushNotificationReceived', notification => {
+    console.log('Push notification received: ', notification);
+    // Menampilkan alert sederhana saat notifikasi diterima ketika aplikasi terbuka.
+    alert(`Notifikasi Baru: ${notification.title}\n${notification.body}`);
+  });
+
+  await PushNotifications.addListener('pushNotificationActionPerformed', notification => {
+    console.log('Push notification action performed', notification.actionId, notification.inputValue);
+    // Aksi saat notifikasi di-tap. Anda bisa navigasi ke halaman tertentu.
+    // if (notification.notification.data.url) {
+    //   window.location.href = notification.notification.data.url;
+    // }
+  });
+}
+
+const registerNotifications = async () => {
+  let permStatus = await PushNotifications.checkPermissions();
+
+  if (permStatus.receive === 'prompt') {
+    permStatus = await PushNotifications.requestPermissions();
+  }
+
+  if (permStatus.receive !== 'granted') {
+    console.warn('User menolak izin notifikasi!');
+    return;
+  }
+
+  await PushNotifications.register();
+}
+
+const initPush = async () => {
+    // Hanya jalankan di platform native (Android/iOS), bukan di web browser
+    if (Capacitor.isNativePlatform()) {
+        try {
+            await addListeners();
+            await registerNotifications();
+        } catch(err) {
+            console.error("Gagal menginisialisasi Push Notification:", err);
+        }
+    }
+}
+// --- End Push Notifications ---
+
 
 document.addEventListener('DOMContentLoaded', async function() {
+    // Inisialisasi Push Notifications
+    initPush();
+
     // Ensure the user is an ADMIN, otherwise redirect.
     const user = await requireRole('ADMIN');
     if (!user) return; // Stop execution if not authenticated
@@ -18,7 +79,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             const notificationsJSON = localStorage.getItem('selinggonet_notifications');
             const notifications = notificationsJSON ? JSON.parse(notificationsJSON) : [];
             
-            // Cek apakah ada notifikasi dengan status read: false
             const hasUnread = notifications.some(n => !n.read);
 
             if (hasUnread) {
@@ -32,26 +92,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    // Panggil fungsi ini saat dashboard dimuat dan setiap beberapa detik
     checkUnreadNotifications();
-    setInterval(checkUnreadNotifications, 5000); // Cek setiap 5 detik
+    setInterval(checkUnreadNotifications, 5000);
 
-    // New function to populate user info
     async function populateUserInfo(user) {
         const userGreeting = document.getElementById('user-greeting');
         const userEmail = document.getElementById('user-email');
-        const userAvatar = document.getElementById('user-avatar'); // Get the avatar element
+        const userAvatar = document.getElementById('user-avatar');
 
         if (!userGreeting || !userEmail) return;
 
-        // Set email immediately
         userEmail.textContent = user.email;
 
-        // Fetch full_name and photo_url from profiles
         try {
             const { data: profile, error } = await supabase
                 .from('profiles')
-                .select('full_name, photo_url') // Fetch photo_url as well
+                .select('full_name, photo_url')
                 .eq('id', user.id)
                 .single();
 
@@ -60,11 +116,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (profile) {
                 userGreeting.textContent = `Hallo, ${profile.full_name || 'Admin'}`;
                 
-                // Set the avatar image
                 if (profile.photo_url && userAvatar) {
                     userAvatar.style.backgroundImage = `url('${profile.photo_url}')`;
                 } else if (userAvatar) {
-                    // Optional: Fallback to initials if no photo
                     const initials = (profile.full_name || 'A').charAt(0).toUpperCase();
                     userAvatar.innerHTML = `<span class="text-white text-xl font-bold flex items-center justify-center h-full">${initials}</span>`;
                     userAvatar.style.backgroundColor = 'rgba(255,255,255,0.3)';
@@ -78,23 +132,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    // DOM Selectors
     const filterBulan = document.getElementById('filter-bulan');
     const filterTahun = document.getElementById('filter-tahun');
     const cardsContainer = document.getElementById('cards-container');
-    // ... (setelah const cardsContainer)
     const chartsWrapper = document.getElementById('charts-wrapper');
     const chartsSkeletonContainer = document.getElementById('charts-skeleton-container');
 
-    // Initial Setup
     populateFilters();
     initializeEventListeners();
     
-    // Show loading immediately before any async operations
     showLoading();
     showChartsLoading();
     
-    fetchDashboardStats(); // Initial call on page load
+    fetchDashboardStats();
 
     function populateFilters() {
         const namaBulan = ["Semua Bulan", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -104,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         namaBulan.forEach((bulan, index) => {
             const option = document.createElement('option');
-            option.value = index; // Use 0 for "Semua Bulan"
+            option.value = index;
             option.textContent = bulan;
             if (index === bulanIni) {
                 option.selected = true;
@@ -130,13 +180,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         const month_filter = parseInt(filterBulan.value, 10);
         const year_filter = parseInt(filterTahun.value, 10);
         
-        // Only show loading if not already showing (to prevent double loading on initial load)
         if (!document.querySelector('.skeleton-card')) {
             showLoading();
         }
         
         try {
-            // Call the RPC function in Supabase for stats
             const { data: stats, error } = await supabase.rpc('get_dashboard_stats', {
                 p_month: month_filter,
                 p_year: year_filter
@@ -146,7 +194,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 throw new Error(`Supabase RPC Error: ${error.message}`);
             }
 
-            // Call the RPC function for charts data
             const { data: chartsData, error: chartsError } = await supabase.rpc('get_dashboard_charts_data', {
                 p_months: 6
             });
@@ -156,11 +203,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
 
             hideLoading();
-            displayStats(stats[0]); // RPC returns an array, get the first element
+            displayStats(stats[0]);
             
-            // Render charts if data available
             if (chartsData) {
-                console.log('Charts data received:', chartsData);
                 renderCharts(chartsData);
                 hideChartsLoading();
             } else {
@@ -188,7 +233,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         const selectedMonth = filterBulan.value;
         const selectedYear = filterTahun.value;
         
-        // Membuat URL dengan parameter filter
         const unpaidLink = `tagihan.html?status=unpaid&bulan=${selectedMonth}&tahun=${selectedYear}`;
         const paidLink = `tagihan.html?status=paid&bulan=${selectedMonth}&tahun=${selectedYear}`;
         const activeCustomersLink = `pelanggan.html?status=AKTIF`;
@@ -261,254 +305,69 @@ document.addEventListener('DOMContentLoaded', async function() {
         skeletonCards.forEach(card => card.remove());
     }
 
-    // function showChartsLoading() {
-    //     const chartContainers = ['revenueChart', 'paymentStatusChart', 'customerGrowthChart', 'customerTotalChart'];
-        
-    //     chartContainers.forEach(chartId => {
-    //         const canvas = document.getElementById(chartId);
-    //         if (canvas) {
-    //             const container = canvas.parentElement;
-    //             // Hide canvas and show loading
-    //             canvas.style.display = 'none';
-                
-    //             // Create loading element
-    //             const loadingDiv = document.createElement('div');
-    //             loadingDiv.className = 'chart-loading-skeleton';
-    //             loadingDiv.innerHTML = `
-    //                 <div class="flex items-center justify-center h-full">
-    //                     <div class="skeleton-line w-32 h-4 rounded"></div>
-    //                 </div>
-    //             `;
-    //             container.appendChild(loadingDiv);
-    //         }
-    //     });
-    // }
-
     function showChartsLoading() {
-        // Kosongkan container skeleton
         chartsSkeletonContainer.innerHTML = '';
-        // Pastikan container chart asli tersembunyi dan skeleton terlihat
         chartsWrapper.style.display = 'none';
         chartsSkeletonContainer.style.display = 'grid';
 
-        // Buat 4 skeleton card untuk chart
         for (let i = 0; i < 4; i++) {
             const skeleton = document.createElement('div');
-            skeleton.className = 'bg-white rounded-2xl shadow-lg p-6 chart-loading'; // Gunakan class .chart-loading
+            skeleton.className = 'bg-white rounded-2xl shadow-lg p-6 chart-loading';
             skeleton.innerHTML = `<div class="w-full h-full skeleton-line"></div>`;
             chartsSkeletonContainer.appendChild(skeleton);
         }
     }
 
-    // function hideChartsLoading() {
-    //     const chartContainers = ['revenueChart', 'paymentStatusChart', 'customerGrowthChart', 'customerTotalChart'];
-        
-    //     chartContainers.forEach(chartId => {
-    //         const canvas = document.getElementById(chartId);
-    //         if (canvas) {
-    //             const container = canvas.parentElement;
-    //             // Show canvas and remove loading
-    //             canvas.style.display = 'block';
-                
-    //             // Remove loading element
-    //             const loadingDiv = container.querySelector('.chart-loading-skeleton');
-    //             if (loadingDiv) {
-    //                 loadingDiv.remove();
-    //             }
-    //         }
-    //     });
-    // }
-
     function hideChartsLoading() {
-        // Sembunyikan container skeleton
         chartsSkeletonContainer.style.display = 'none';
-        // Tampilkan kembali container chart yang asli
         chartsWrapper.style.display = 'grid';
     }
 
-    // Chart instances
     let revenueChart = null;
     let paymentStatusChart = null;
     let customerGrowthChart = null;
     let customerTotalChart = null;
 
-    // Chart rendering function
     function renderCharts(chartsData) {
         try {
-            console.log('Rendering charts with data:', chartsData);
-            
-            // Destroy existing charts
             if (revenueChart) revenueChart.destroy();
             if (paymentStatusChart) paymentStatusChart.destroy();
             if (customerGrowthChart) customerGrowthChart.destroy();
             if (customerTotalChart) customerTotalChart.destroy();
 
-            // Revenue & Profit Line Chart
             const revenueCtx = document.getElementById('revenueChart');
             if (revenueCtx && chartsData.revenue_chart) {
                 revenueChart = new Chart(revenueCtx, {
                     type: 'line',
                     data: chartsData.revenue_chart,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: {
-                                    usePointStyle: true,
-                                    padding: 20,
-                                    font: {
-                                        size: 12
-                                    }
-                                }
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.dataset.label + ': Rp ' + 
-                                               new Intl.NumberFormat('id-ID').format(context.parsed.y);
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        return 'Rp ' + new Intl.NumberFormat('id-ID', {
-                                            notation: 'compact',
-                                            compactDisplay: 'short'
-                                        }).format(value);
-                                    }
-                                }
-                            }
-                        },
-                        interaction: {
-                            mode: 'nearest',
-                            axis: 'x',
-                            intersect: false
-                        }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { size: 12 }}}, tooltip: { mode: 'index', intersect: false, callbacks: { label: function(context) { return context.dataset.label + ': Rp ' + new Intl.NumberFormat('id-ID').format(context.parsed.y);}}}}, scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return 'Rp ' + new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(value);}}}}, interaction: { mode: 'nearest', axis: 'x', intersect: false }}
                 });
             }
 
-            // Payment Status Pie Chart
             const paymentStatusCtx = document.getElementById('paymentStatusChart');
-            console.log('Payment Status Chart - Context:', paymentStatusCtx);
-            console.log('Payment Status Chart - Data:', chartsData.payment_status_chart);
-            
             if (paymentStatusCtx && chartsData.payment_status_chart) {
                 paymentStatusChart = new Chart(paymentStatusCtx, {
                     type: 'doughnut',
                     data: chartsData.payment_status_chart,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    padding: 20,
-                                    usePointStyle: true,
-                                    font: {
-                                        size: 12
-                                    }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                        return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
-                                    }
-                                }
-                            }
-                        },
-                        cutout: '60%'
-                    }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, font: { size: 12 }}}, tooltip: { callbacks: { label: function(context) { const total = context.dataset.data.reduce((a, b) => a + b, 0); const percentage = ((context.parsed / total) * 100).toFixed(1); return context.label + ': ' + context.parsed + ' (' + percentage + '%)';}}}}, cutout: '60%' }
                 });
             }
 
-            // Customer Growth Bar Chart (New vs Churn)
             const customerGrowthCtx = document.getElementById('customerGrowthChart');
             if (customerGrowthCtx && chartsData.customer_growth_chart) {
                 customerGrowthChart = new Chart(customerGrowthCtx, {
                     type: 'bar',
                     data: chartsData.customer_growth_chart,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: {
-                                    usePointStyle: true,
-                                    padding: 20,
-                                    font: {
-                                        size: 12
-                                    }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.dataset.label + ': ' + context.parsed.y + ' pelanggan';
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                }
-                            }
-                        }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { size: 12 }}}, tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.parsed.y + ' pelanggan';}}}}, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }}}}
                 });
             }
 
-            // Customer Total Line Chart
             const customerTotalCtx = document.getElementById('customerTotalChart');
             if (customerTotalCtx && chartsData.customer_total_chart) {
                 customerTotalChart = new Chart(customerTotalCtx, {
                     type: 'line',
                     data: chartsData.customer_total_chart,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return 'Total Aktif: ' + context.parsed.y + ' pelanggan';
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 5
-                                }
-                            }
-                        },
-                        interaction: {
-                            mode: 'nearest',
-                            axis: 'x',
-                            intersect: false
-                        }
-                    }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return 'Total Aktif: ' + context.parsed.y + ' pelanggan';}}}}, scales: { y: { beginAtZero: true, ticks: { stepSize: 5 }}}, interaction: { mode: 'nearest', axis: 'x', intersect: false }}
                 });
             }
 
