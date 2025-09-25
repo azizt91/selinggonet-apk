@@ -15,7 +15,7 @@ serve(async (req) => {
     const today = new Date();
     const currentDay = today.getDate();
     const currentMonthYear = today.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-    console.log(`Mengecek jatuh tempo untuk tanggal: ${currentDay}`);
+    console.log(`Mengecek jatuh tempo untuk tanggal: ${currentDay}, Periode: ${currentMonthYear}`);
 
     // 2. Cari semua pelanggan aktif yang tanggal pemasangannya cocok dengan tanggal hari ini
     const { data: profiles, error: profilesError } = await supabase
@@ -25,28 +25,56 @@ serve(async (req) => {
 
     if (profilesError) throw profilesError;
 
-    const usersToNotify = profiles.filter(p => {
+    const potentialUsers = profiles.filter(p => {
         if (!p.installation_date) return false;
         const installationDay = new Date(p.installation_date).getDate();
         return installationDay === currentDay;
     });
 
-    if (usersToNotify.length === 0) {
-      const msg = 'Tidak ada pengguna untuk dinotifikasi via WhatsApp hari ini.';
+    if (potentialUsers.length === 0) {
+      const msg = 'Tidak ada pengguna yang jatuh tempo hari ini.';
       console.log(msg);
       return new Response(JSON.stringify({ message: msg }), {
         headers: { 'Content-Type': 'application/json' },
         status: 200,
       });
     }
-    console.log(`Ditemukan ${usersToNotify.length} pengguna untuk notifikasi WhatsApp.`);
+    console.log(`Ditemukan ${potentialUsers.length} pengguna yang berpotensi untuk dinotifikasi.`);
 
-    // 3. Ambil semua data paket untuk efisiensi
+    // 3. Cek siapa saja dari pengguna tersebut yang sudah membayar bulan ini
+    const potentialUserIds = potentialUsers.map(u => u.id);
+    const { data: paidInvoices, error: invoicesError } = await supabase
+      .from('invoices')
+      .select('customer_id')
+      .in('customer_id', potentialUserIds)
+      .eq('status', 'paid')
+      .eq('invoice_period', currentMonthYear);
+
+    if (invoicesError) throw invoicesError;
+
+    const paidUserIds = new Set(paidInvoices.map(inv => inv.customer_id));
+    console.log(`Ditemukan ${paidUserIds.size} pengguna yang sudah membayar bulan ini.`);
+
+    // 4. Filter pengguna, hanya sisakan yang belum bayar
+    const usersToNotify = potentialUsers.filter(user => !paidUserIds.has(user.id));
+
+    if (usersToNotify.length === 0) {
+      const msg = 'Semua pengguna yang jatuh tempo hari ini sudah membayar.';
+      console.log(msg);
+      return new Response(JSON.stringify({ message: msg }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+    console.log(`Final: ${usersToNotify.length} pengguna akan dikirimkan notifikasi WhatsApp.`);
+
+
+    // 5. Ambil semua data paket untuk efisiensi
     const { data: packages, error: packagesError } = await supabase.from('packages').select('id, price');
     if (packagesError) throw packagesError;
     const packagesMap = new Map(packages.map(p => [p.id, p.price]));
 
-    // 4. Kirim notifikasi ke setiap pengguna
+    // 6. Kirim notifikasi ke pengguna yang sudah difilter
     let successCount = 0;
     let failureCount = 0;
 
@@ -59,30 +87,9 @@ serve(async (req) => {
       }
 
       // Membuat isi pesan sesuai template
-      const message = `*Informasi Tagihan WiFi Anda*
+      const message = `*Informasi Tagihan WiFi Anda*\n\nHai Bapak/Ibu ${user.full_name},\nID Pelanggan: ${user.idpl || '-'}\n\nTagihan Anda untuk periode *${currentMonthYear}* sebesar *Rp${new Intl.NumberFormat('id-ID').format(price)}* telah jatuh tempo.\n\n*PEMBAYARAN LEBIH MUDAH DENGAN QRIS!*\nScan kode QR di gambar pesan ini menggunakan aplikasi m-banking atau e-wallet Anda (DANA, GoPay, OVO, dll). Pastikan nominal transfer sesuai tagihan.\n\nUntuk pembayaran via QRIS, silakan lihat gambar pada link berikut:\nhttps://bayardong.online/sneat/assets/img/qris.jpeg\n\nAtau transfer manual ke rekening berikut:\n• Seabank: 901307925714\n• BCA: 3621053653\n• BSI: 7211806138\n(an. TAUFIQ AZIZ)\n\nTerima kasih atas kepercayaan Anda.\n_____________________________\n*_Pesan ini dibuat otomatis. Abaikan jika sudah membayar._`;
 
-Hai Bapak/Ibu ${user.full_name},
-ID Pelanggan: ${user.idpl || '-'}
-
-Tagihan Anda untuk periode *${currentMonthYear}* sebesar *Rp${new Intl.NumberFormat('id-ID').format(price)}* telah jatuh tempo.
-
-*PEMBAYARAN LEBIH MUDAH DENGAN QRIS!*
-Scan kode QR di gambar pesan ini menggunakan aplikasi m-banking atau e-wallet Anda (DANA, GoPay, OVO, dll). Pastikan nominal transfer sesuai tagihan.
-
-Untuk pembayaran via QRIS, silakan lihat gambar pada link berikut:
-https://bayardong.online/sneat/assets/img/qris.jpeg
-
-Atau transfer manual ke rekening berikut:
-• Seabank: 901307925714
-• BCA: 3621053653
-• BSI: 7211806138
-(an. TAUFIQ AZIZ)
-
-Terima kasih atas kepercayaan Anda.
-_____________________________
-*_Pesan ini dibuat otomatis. Abaikan jika sudah membayar._`;
-
-      // 5. Panggil fungsi 'send-whatsapp-notification' yang sudah ada
+      // Panggil fungsi 'send-whatsapp-notification' yang sudah ada
       try {
         const response = await fetch(Deno.env.get('SUPABASE_URL')! + '/functions/v1/send-whatsapp-notification', {
           method: 'POST',

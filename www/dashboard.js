@@ -8,11 +8,11 @@ import { requireRole, initLogout } from './auth.js';
 const initializePushNotifications = async () => {
   try {
     // Dynamically import Capacitor to check the platform safely
-    const { Capacitor } = await import('./@capacitor/core.js');
+    const { Capacitor } = await import('@capacitor/core');
 
     // Only run on native platforms
     if (Capacitor.isNativePlatform()) {
-      const { PushNotifications } = await import('./@capacitor/push-notifications.js');
+      const { PushNotifications } = await import('@capacitor/push-notifications');
 
       // Listener for successful registration
       await PushNotifications.addListener('registration', async (token) => {
