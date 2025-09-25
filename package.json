@@ -1,0 +1,29 @@
+{
+  "name": "selinggonet-isp-management",
+  "version": "1.0.1",
+  "description": "ISP Customer Management System with Google Sheets Integration",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo \"Error: no start script specified\" && exit 1",
+    "build": "echo 'No build step required for static files'"
+  },
+  "keywords": [
+    "isp",
+    "customer-management",
+    "google-sheets",
+    "billing",
+    "netlify"
+  ],
+  "author": "Selinggonet",
+  "license": "MIT",
+  "dependencies": {
+    "crypto": "1.0.1",
+    "googleapis": "^126.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "supabase": "^2.40.7"
+  }
+}
