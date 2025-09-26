@@ -1,66 +1,25 @@
-// login.js (Versi Perbaikan)
+// login.js (Supabase version)
 import { supabase } from './supabase-client.js';
-import { NativeBiometric } from 'capacitor-native-biometric';
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const errorMessage = document.getElementById('error-message');
 
-    // Buat fungsi async terpisah untuk inisialisasi halaman (cek biometrik & sesi)
-    // Ini memastikan listener di bawahnya tidak terblokir
-    async function initializePage() {
-        // --- KODE BIOMETRIK SAAT HALAMAN DIMUAT ---
-        try {
-            const available = await NativeBiometric.isAvailable();
-
-            if (available) {
-                const credentials = await NativeBiometric.getCredentials({
-                    server: "com.selinggonet.ispmgmt",
-                });
-
-                if (credentials.password) { // password di sini adalah refresh_token
-                    await NativeBiometric.verifyIdentity({
-                        reason: "Login ke Selinggonet",
-                        title: "Login Cepat",
-                        subtitle: "Gunakan sidik jari Anda",
-                    });
-                    
-                    const { data, error } = await supabase.auth.setSession({
-                        access_token: '', // Dikosongkan karena akan di-refresh
-                        refresh_token: credentials.password 
-                    });
-
-                    if (data.session) {
-                        await handleRedirect(data.session.user);
-                        return; // Hentikan eksekusi jika sudah berhasil login
-                    } else {
-                        console.error("Gagal login dengan token biometrik:", error);
-                    }
-                }
-            }
-        } catch (error) {
-            console.info("Login sidik jari dibatalkan atau tidak tersedia.", error);
-        }
-        // --- AKHIR DARI KODE BIOMETRIK ---
-
-        // Cek sesi yang sudah ada jika login biometrik gagal atau tidak tersedia
-        const { data: { session } } = await supabase.auth.getSession();
+    // Check if a user is already logged in and redirect them
+    supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
-            await handleRedirect(session.user);
-        }
-    }
+            handleRedirect(session.user);
+        } 
+    });
 
-    // Pindahkan listener ke luar fungsi async agar langsung terpasang
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
         const submitButton = event.target.querySelector('button[type="submit"]');
         errorMessage.textContent = '';
         errorMessage.classList.add('hidden');
 
-        const email = emailInput.value;
-        const password = passwordInput.value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
 
         setButtonLoading(submitButton, true);
 
@@ -75,24 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (data.user) {
-                // --- KODE UNTUK AKTIVASI BIOMETRIK SETELAH LOGIN MANUAL ---
-                const isBiometricAvailable = await NativeBiometric.isAvailable();
-                if (isBiometricAvailable) {
-                    const confirmEnableBiometric = confirm("Aktifkan login dengan sidik jari untuk masuk lebih cepat?");
-                    if (confirmEnableBiometric) {
-                        try {
-                            await NativeBiometric.setCredentials({
-                                username: email,
-                                password: data.session.refresh_token, // Simpan refresh token
-                                server: "com.selinggonet.ispmgmt",
-                            });
-                        } catch (e) {
-                            console.error("Gagal menyimpan kredensial biometrik:", e);
-                        }
-                    }
-                }
-                // --- AKHIR KODE AKTIVASI ---
-                
                 await handleRedirect(data.user);
             }
 
@@ -104,22 +45,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Panggil fungsi async untuk memulai pengecekan di latar belakang
-    initializePage();
-
-    // Fungsi handleRedirect dan setButtonLoading tetap sama persis (tidak perlu diubah)
     async function handleRedirect(user) {
+        console.log("DEBUG: Attempting to fetch profile for user ID:", user.id);
+
         try {
+            // TEMPORARY DEBUGGING: Fetch profile without .single() to see what happens
             const { data: profiles, error } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*') // Select all columns for more info
                 .eq('id', user.id);
 
-            if (error) throw new Error(`Supabase query failed: ${error.message}`);
-            if (!profiles || profiles.length === 0) throw new Error('Profil tidak ditemukan untuk pengguna ini.');
-            
-            const profile = profiles[0];
+            console.log("DEBUG: Query result data:", profiles);
+            console.log("DEBUG: Query error object:", error);
 
+            if (error) {
+                throw new Error(`Supabase query failed: ${error.message}`);
+            }
+
+            if (!profiles || profiles.length === 0) {
+                throw new Error('KRITIS: Login berhasil, tapi tidak ada profil yang cocok di database untuk pengguna ini.');
+            }
+            
+            if (profiles.length > 1) {
+                 throw new Error('KRITIS: Ditemukan lebih dari satu profil untuk ID pengguna yang sama. Data tidak konsisten.');
+            }
+
+            const profile = profiles[0];
+            console.log("DEBUG: Found profile:", profile);
+
+            // Redirect based on the role from the profiles table
             if (profile.role === 'ADMIN') {
                 window.location.href = 'dashboard.html';
             } else if (profile.role === 'USER') {
@@ -131,7 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             errorMessage.textContent = error.message;
             errorMessage.classList.remove('hidden');
-            console.error("Error saat redirect:", error);
+            console.error("DEBUG: Error during handleRedirect:", error);
+            // If fetching profile fails, sign the user out to be safe
             await supabase.auth.signOut();
         }
     }
@@ -139,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setButtonLoading(button, loading) {
         const span = button.querySelector('span');
         if (!span) return;
+
         if (loading) {
             button.disabled = true;
             span.innerHTML = 'Memproses...';
