@@ -1,59 +1,56 @@
+// login.js (Versi Perbaikan)
 import { supabase } from './supabase-client.js';
-// 1. Tambahkan import untuk plugin biometrik
 import { NativeBiometric } from 'capacitor-native-biometric';
 
-document.addEventListener('DOMContentLoaded', async () => { // Jadikan async
+document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const errorMessage = document.getElementById('error-message');
 
-    // --- KODE BIOMETRIK DILETAKKAN DI SINI ---
-    try {
-        // Cek apakah fitur biometrik tersedia di perangkat ini
-        const available = await NativeBiometric.isAvailable();
+    // Buat fungsi async terpisah untuk inisialisasi halaman (cek biometrik & sesi)
+    // Ini memastikan listener di bawahnya tidak terblokir
+    async function initializePage() {
+        // --- KODE BIOMETRIK SAAT HALAMAN DIMUAT ---
+        try {
+            const available = await NativeBiometric.isAvailable();
 
-        if (available) {
-            // Cek apakah ada kredensial yang tersimpan
-            const credentials = await NativeBiometric.getCredentials({
-                server: "com.selinggonet.ispmgmt",
-            });
-
-            // Jika ada kredensial (refresh token), minta verifikasi sidik jari
-            if (credentials.password) {
-                await NativeBiometric.verifyIdentity({
-                    reason: "Login ke Selinggonet",
-                    title: "Login Cepat",
-                    subtitle: "Gunakan sidik jari Anda",
-                });
-                
-                // Jika sidik jari cocok (tidak ada error), gunakan refresh token untuk login
-                const { data, error } = await supabase.auth.setSession({
-                    access_token: '', // Dikosongkan karena akan di-refresh
-                    refresh_token: credentials.password 
+            if (available) {
+                const credentials = await NativeBiometric.getCredentials({
+                    server: "com.selinggonet.ispmgmt",
                 });
 
-                if (data.session) {
-                    // Jika berhasil login dengan token, langsung redirect
-                    await handleRedirect(data.session.user);
-                    return; // Hentikan eksekusi agar tidak lanjut ke pengecekan sesi manual
-                } else {
-                    console.error("Gagal login dengan token biometrik:", error);
+                if (credentials.password) { // password di sini adalah refresh_token
+                    await NativeBiometric.verifyIdentity({
+                        reason: "Login ke Selinggonet",
+                        title: "Login Cepat",
+                        subtitle: "Gunakan sidik jari Anda",
+                    });
+                    
+                    const { data, error } = await supabase.auth.setSession({
+                        access_token: '', // Dikosongkan karena akan di-refresh
+                        refresh_token: credentials.password 
+                    });
+
+                    if (data.session) {
+                        await handleRedirect(data.session.user);
+                        return; // Hentikan eksekusi jika sudah berhasil login
+                    } else {
+                        console.error("Gagal login dengan token biometrik:", error);
+                    }
                 }
             }
+        } catch (error) {
+            console.info("Login sidik jari dibatalkan atau tidak tersedia.", error);
         }
-    } catch (error) {
-        // Jika pengguna membatalkan atau terjadi error lain, biarkan saja.
-        // Pengguna bisa lanjut login manual.
-        console.info("Login sidik jari dibatalkan atau tidak tersedia.", error);
+        // --- AKHIR DARI KODE BIOMETRIK ---
+
+        // Cek sesi yang sudah ada jika login biometrik gagal atau tidak tersedia
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            await handleRedirect(session.user);
+        }
     }
-    // --- AKHIR DARI KODE BIOMETRIK ---
 
-
-    // Check if a user is already logged in and redirect them (logika yang sudah ada)
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-        await handleRedirect(session.user);
-    } 
-
+    // Pindahkan listener ke luar fungsi async agar langsung terpasang
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const emailInput = document.getElementById('email');
@@ -78,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Jadikan async
             }
 
             if (data.user) {
-                // --- KODE UNTUK AKTIVASI BIOMETRIK ---
+                // --- KODE UNTUK AKTIVASI BIOMETRIK SETELAH LOGIN MANUAL ---
                 const isBiometricAvailable = await NativeBiometric.isAvailable();
                 if (isBiometricAvailable) {
                     const confirmEnableBiometric = confirm("Aktifkan login dengan sidik jari untuk masuk lebih cepat?");
@@ -86,10 +83,9 @@ document.addEventListener('DOMContentLoaded', async () => { // Jadikan async
                         try {
                             await NativeBiometric.setCredentials({
                                 username: email,
-                                password: data.session.refresh_token,
+                                password: data.session.refresh_token, // Simpan refresh token
                                 server: "com.selinggonet.ispmgmt",
                             });
-                            // Tidak perlu alert, biarkan proses redirect berjalan mulus
                         } catch (e) {
                             console.error("Gagal menyimpan kredensial biometrik:", e);
                         }
@@ -108,7 +104,10 @@ document.addEventListener('DOMContentLoaded', async () => { // Jadikan async
         }
     });
 
-    // Fungsi handleRedirect tetap sama
+    // Panggil fungsi async untuk memulai pengecekan di latar belakang
+    initializePage();
+
+    // Fungsi handleRedirect dan setButtonLoading tetap sama persis (tidak perlu diubah)
     async function handleRedirect(user) {
         try {
             const { data: profiles, error } = await supabase
@@ -137,7 +136,6 @@ document.addEventListener('DOMContentLoaded', async () => { // Jadikan async
         }
     }
 
-    // Fungsi setButtonLoading tetap sama
     function setButtonLoading(button, loading) {
         const span = button.querySelector('span');
         if (!span) return;
