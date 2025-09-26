@@ -19,9 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===============================================
     // Views will be initialized when needed
     let views = {};
-    const unpaidContent = document.getElementById('unpaid-content');
-    const installmentContent = document.getElementById('installment-content');
-    const paidContent = document.getElementById('paid-content');
+    const invoiceList = document.getElementById('invoice-list');
     const searchInput = document.getElementById('search-input');
     const unpaidTab = document.getElementById('unpaid-tab');
     const installmentTab = document.getElementById('installment-tab');
@@ -138,48 +136,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return { bg: bgClass, text: textClass };
     }
 
-    const swiper = new Swiper('.swiper', {
-        autoHeight: true,
-    });
-
-    function setActiveTab(index) {
-        currentTab = [
-            'unpaid', 'installment', 'paid'
-        ][index];
-        [unpaidTab, installmentTab, paidTab].forEach((tab, i) => {
-            tab.classList.toggle('active', i === index);
-        });
-        if (addInvoiceBtn) {
-            addInvoiceBtn.style.display = currentTab === 'unpaid' ? 'flex' : 'none';
-        }
-        if (filterBtn) {
-            filterBtn.classList.toggle('hidden', currentTab !== 'paid');
-        }
-        if (currentTab !== 'paid' && totalContainer) {
-            totalContainer.classList.add('hidden');
-        }
-        renderList();
-    }
-    swiper.on('slideChange', () => setActiveTab(swiper.activeIndex));
     // ===============================================
     // Initial Setup
     // ===============================================
     initializeEventListeners();
     fetchData();
+
     // ===============================================
     // Event Listeners Setup
     // ===============================================
     function initializeEventListeners() {
         searchInput.addEventListener('input', renderList);
-        unpaidTab.addEventListener('click', () => swiper.slideTo(0));
-        installmentTab.addEventListener('click', () => swiper.slideTo(1));
-        paidTab.addEventListener('click', () => swiper.slideTo(2));
-        [unpaidContent, installmentContent, paidContent].forEach(container => {
-            container.addEventListener('click', handleInvoiceListClick);
+        unpaidTab.addEventListener('click', () => {
+            if (new URLSearchParams(window.location.search).has('bulan')) {
+                window.history.pushState({}, document.title, window.location.pathname);
+                fetchData();
+            } else {
+                switchTab('unpaid');
+            }
         });
+        installmentTab.addEventListener('click', () => {
+            if (new URLSearchParams(window.location.search).has('bulan')) {
+                window.history.pushState({}, document.title, window.location.pathname);
+                fetchData();
+            } else {
+                switchTab('installment');
+            }
+        });
+        paidTab.addEventListener('click', () => {
+            if (new URLSearchParams(window.location.search).has('bulan')) {
+                window.history.pushState({}, document.title, window.location.pathname);
+                fetchData();
+            } else {
+                switchTab('paid');
+            }
+        });
+        
+        invoiceList.addEventListener('click', handleInvoiceListClick);
+
         if (addInvoiceBtn) {
             addInvoiceBtn.addEventListener('click', handleCreateInvoices);
         }
+
         // Back button from detail view
         const backFromDetailBtn = document.getElementById('back-from-detail');
         if (backFromDetailBtn) {
@@ -187,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 switchView('list');
             });
         }
+
         // Filter Event Listeners
         if (filterBtn) {
             filterBtn.addEventListener('click', () => filterModal.classList.remove('hidden'));
@@ -310,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Main Data Fetch & Display Logic (PERBAIKAN FINAL)
     // ===============================================
     async function fetchData() {
-        showLoading();
+        showLoading('Memuat data tagihan...');
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const filterStatus = urlParams.get('status');
@@ -318,20 +317,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const filterTahun = urlParams.get('tahun');
             const isFiltering = filterBulan && filterTahun && filterBulan !== '0';
 
-            let initialTabIndex = 0;
+            // Atur tab aktif berdasarkan parameter URL
             if (filterStatus === 'paid') {
-                initialTabIndex = 2;
+                currentTab = 'paid';
             } else if (filterStatus === 'installment') {
-                initialTabIndex = 1;
+                currentTab = 'installment';
+            } else {
+                currentTab = 'unpaid';
             }
 
             if (isFiltering) {
                 const namaBulan = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
                 const targetPeriode = `${namaBulan[parseInt(filterBulan, 10)]} ${filterTahun}`;
                 
+                console.log(`Filtering data for period: ${targetPeriode}`); // Untuk debugging
+                
                 searchInput.placeholder = `Disaring: ${targetPeriode}`;
                 searchInput.disabled = true;
 
+                // --- LOGIKA FETCH SAAT FILTER AKTIF ---
+
+                // Ambil data Unpaid dengan filter (hanya unpaid, tidak termasuk partially_paid)
                 const { data: unpaid, error: unpaidErr } = await supabase
                     .from('invoices')
                     .select(`id, invoice_period, amount, total_due, amount_paid, status, paid_at, payment_method, profiles (full_name, idpl, whatsapp_number)`)
@@ -341,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (unpaidErr) throw unpaidErr;
                 unpaidData = unpaid;
 
+                // Ambil data Installment dengan filter (dengan error handling untuk enum)
                 try {
                     const { data: installment, error: installmentErr } = await supabase
                         .from('invoices')
@@ -352,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     installmentData = installment;
                 } catch (enumError) {
                     console.warn('Enum partially_paid belum ada, menggunakan fallback query');
+                    // Fallback: ambil data berdasarkan kondisi amount_paid > 0 dan status != 'paid'
                     const { data: installmentFallback, error: fallbackErr } = await supabase
                         .from('invoices')
                         .select(`id, invoice_period, amount, total_due, amount_paid, status, paid_at, payment_method, profiles (full_name, idpl, whatsapp_number)`)
@@ -363,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     installmentData = installmentFallback || [];
                 }
 
+                // Ambil data Paid dengan filter (dan paginasi)
                 let allPaid = [];
                 let page = 0;
                 const CHUNK_SIZE = 1000;
@@ -380,13 +389,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     page++;
                 }
                 paidData = allPaid;
-                allPaidData = [...allPaid];
-                filteredPaidData = [...allPaid];
+                allPaidData = [...allPaid]; // Store for filtering
+                filteredPaidData = [...allPaid]; // Initialize filtered data
 
             } else {
+                // --- LOGIKA FETCH NORMAL (TANPA FILTER) ---
                 searchInput.placeholder = 'Cari tagihan';
                 searchInput.disabled = false;
 
+                // Ambil data Unpaid tanpa filter (hanya unpaid, tidak termasuk partially_paid)
                 const { data: unpaid, error: unpaidErr } = await supabase
                     .from('invoices')
                     .select(`id, invoice_period, amount, total_due, amount_paid, status, paid_at, payment_method, profiles (full_name, idpl, whatsapp_number)`)
@@ -395,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (unpaidErr) throw unpaidErr;
                 unpaidData = unpaid;
 
+                // Ambil data Installment tanpa filter (dengan error handling untuk enum)
                 try {
                     const { data: installment, error: installmentErr } = await supabase
                         .from('invoices')
@@ -405,6 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     installmentData = installment;
                 } catch (enumError) {
                     console.warn('Enum partially_paid belum ada, menggunakan fallback query');
+                    // Fallback: ambil data berdasarkan kondisi amount_paid > 0 dan status != 'paid'
                     const { data: installmentFallback, error: fallbackErr } = await supabase
                         .from('invoices')
                         .select(`id, invoice_period, amount, total_due, amount_paid, status, paid_at, payment_method, profiles (full_name, idpl, whatsapp_number)`)
@@ -415,6 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     installmentData = installmentFallback || [];
                 }
 
+                // Ambil data Paid tanpa filter (dan paginasi)
                  let allPaid = [];
                 let page = 0;
                 const CHUNK_SIZE = 1000;
@@ -431,19 +445,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     page++;
                 }
                 paidData = allPaid;
-                allPaidData = [...allPaid];
-                filteredPaidData = [...allPaid];
+                allPaidData = [...allPaid]; // Store for filtering
+                filteredPaidData = [...allPaid]; // Initialize filtered data
             }
 
-            swiper.slideTo(initialTabIndex, 0);
-            setActiveTab(initialTabIndex);
+            // Render berdasarkan tab yang sudah ditentukan
+            switchTab(currentTab);
 
         } catch (error) {
             console.error('Error fetching data:', error);
-            const errorMessage = `Gagal memuat data: ${error.message}`;
-            unpaidContent.innerHTML = `<p class="text-center text-red-500 p-4">${errorMessage}</p>`;
-            installmentContent.innerHTML = `<p class="text-center text-red-500 p-4">${errorMessage}</p>`;
-            paidContent.innerHTML = `<p class="text-center text-red-500 p-4">${errorMessage}</p>`;
+            console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
+            
+            let errorMessage = 'Gagal memuat data tagihan';
+            if (error.message) {
+                errorMessage += `: ${error.message}`;
+            }
+            if (error.code) {
+                errorMessage += ` (Code: ${error.code})`;
+            }
+            
+            invoiceList.innerHTML = `<p class="text-center text-red-500 p-4">${errorMessage}</p>`;
             unpaidData = [];
             installmentData = [];
             paidData = [];
@@ -452,13 +478,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // ... SISA KODE DARI SINI KE BAWAH TETAP SAMA DAN TIDAK PERLU DIUBAH ...
+    // Pastikan semua fungsi lainnya (switchTab, renderList, markAsPaid, dll.) tetap ada.
+
     function switchTab(tab) {
-        const tabIndex = {
-            'unpaid': 0,
-            'installment': 1,
-            'paid': 2
-        }[tab];
-        swiper.slideTo(tabIndex);
+        currentTab = tab;
+        
+        // Reset semua tab
+        unpaidTab.classList.remove('active');
+        installmentTab.classList.remove('active');
+        paidTab.classList.remove('active');
+        
+        // Aktifkan tab yang dipilih
+        if (tab === 'unpaid') {
+            unpaidTab.classList.add('active');
+            if (addInvoiceBtn) addInvoiceBtn.style.display = 'flex';
+        } else if (tab === 'installment') {
+            installmentTab.classList.add('active');
+            if (addInvoiceBtn) addInvoiceBtn.style.display = 'none';
+        } else if (tab === 'paid') {
+            paidTab.classList.add('active');
+            if (addInvoiceBtn) addInvoiceBtn.style.display = 'none';
+            // Show filter button only on paid tab
+            if (filterBtn) filterBtn.classList.remove('hidden');
+        }
+        
+        // Hide filter button on other tabs
+        if (tab !== 'paid' && filterBtn) {
+            filterBtn.classList.add('hidden');
+            // Hide total container when switching away from paid tab
+            if (totalContainer) totalContainer.classList.add('hidden');
+        }
+        
+        renderList();
     }
 
     function renderList() {

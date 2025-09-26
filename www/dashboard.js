@@ -1,117 +1,63 @@
 // dashboard.js (Supabase version)
 import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
-import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
+
 
 /**
  * Initializes Push Notifications safely, only on native platforms.
  */
-// const initializePushNotifications = async () => {
-//   try {
-//     const { Capacitor } = await import('@capacitor/core');
-
-//     if (Capacitor.isNativePlatform()) {
-//       const { PushNotifications } = await import('@capacitor/push-notifications');
-
-//       // Add all listeners
-//       await PushNotifications.addListener('registration', async (token) => {
-//         console.info('Device registration token: ', token.value);
-//         const { data: { user } } = await supabase.auth.getUser();
-//         if (user) {
-//           const { error } = await supabase.from('device_tokens').upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
-//           if (error) {
-//             console.error('Failed to save device token:', error);
-//           } else {
-//             console.log('Device token saved successfully.');
-//           }
-//         }
-//       });
-
-//       await PushNotifications.addListener('registrationError', (err) => {
-//         console.error('Push registration error: ', err.error);
-//       });
-
-//       await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-//         console.log('Push notification received: ', notification);
-//         alert(`Notifikasi Baru: ${notification.title}\n${notification.body}`);
-//       });
-
-//       await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-//         console.log('Push notification action performed', notification.actionId, notification.inputValue);
-//       });
-
-//       // Check permissions and register
-//       let permStatus = await PushNotifications.checkPermissions();
-//       if (permStatus.receive === 'prompt') {
-//         permStatus = await PushNotifications.requestPermissions();
-//       }
-//       if (permStatus.receive === 'granted') {
-//         await PushNotifications.register();
-//       } else {
-//         console.warn('User denied push permissions!');
-//       }
-      
-//       console.log("Push notifications initialized for native platform.");
-//     }
-//   } catch (e) {
-//     console.log('Push notifications not initialized (not a native app or error occurred).');
-//   }
-// };
-
-// File: www/dashboard.js
-
 const initializePushNotifications = async () => {
-    // Gunakan pengecekan yang sudah terbukti aman
+  try {
+    const { Capacitor } = await import('@capacitor/core');
+
     if (Capacitor.isNativePlatform()) {
-      try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+
+      // Add all listeners
+      await PushNotifications.addListener('registration', async (token) => {
+        console.info('Device registration token: ', token.value);
         const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-          console.warn('Push Notifications: Pengguna belum login. Proses inisialisasi notifikasi dibatalkan.');
-          return; 
-        }
-
-        await PushNotifications.addListener('registration', async (token) => {
-          console.info('Token registrasi perangkat: ', token.value);
-          
-          const { error } = await supabase
-            .from('device_tokens')
-            .upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
-
+        if (user) {
+          const { error } = await supabase.from('device_tokens').upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
           if (error) {
-            console.error('Gagal menyimpan token perangkat:', error);
-            alert(`Gagal menyimpan token notifikasi: ${error.message}`);
+            console.error('Failed to save device token:', error);
           } else {
-            console.log('Token perangkat berhasil disimpan.');
+            console.log('Device token saved successfully.');
           }
-        });
-
-        await PushNotifications.addListener('registrationError', (err) => {
-          console.error('Error registrasi notifikasi: ', err.error);
-          alert(`Registrasi notifikasi gagal: ${err.error}`);
-        });
-
-        let permStatus = await PushNotifications.checkPermissions();
-
-        if (permStatus.receive === 'prompt') {
-          permStatus = await PushNotifications.requestPermissions();
         }
-        
-        if (permStatus.receive === 'granted') {
-          await PushNotifications.register();
-        } else {
-          console.warn('Pengguna menolak izin notifikasi.');
-        }
+      });
 
-      } catch (e) {
-        console.error('Inisialisasi Push Notifications gagal:', e);
-        alert(`Terjadi error pada sistem notifikasi: ${e.message}`);
+      await PushNotifications.addListener('registrationError', (err) => {
+        console.error('Push registration error: ', err.error);
+      });
+
+      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Push notification received: ', notification);
+        alert(`Notifikasi Baru: ${notification.title}\n${notification.body}`);
+      });
+
+      await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        console.log('Push notification action performed', notification.actionId, notification.inputValue);
+      });
+
+      // Check permissions and register
+      let permStatus = await PushNotifications.checkPermissions();
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
       }
-    } else {
-        console.log("Bukan platform native, inisialisasi Push Notifications dilewati.");
+      if (permStatus.receive === 'granted') {
+        await PushNotifications.register();
+      } else {
+        console.warn('User denied push permissions!');
+      }
+      
+      console.log("Push notifications initialized for native platform.");
     }
+  } catch (e) {
+    console.log('Push notifications not initialized (not a native app or error occurred).');
+  }
 };
+
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Safely initialize Push Notifications
