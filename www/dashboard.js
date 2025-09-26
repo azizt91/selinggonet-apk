@@ -1,6 +1,8 @@
 // dashboard.js (Supabase version)
 import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 /**
  * Initializes Push Notifications safely, only on native platforms.
@@ -60,77 +62,55 @@ import { requireRole, initLogout } from './auth.js';
 // File: www/dashboard.js
 
 const initializePushNotifications = async () => {
-  try {
-    // 1. Impor modul Capacitor terlebih dahulu
-    const { Capacitor } = await import('@capacitor/core');
-
-    // 2. Hanya jalankan di aplikasi native (Android/iOS)
+    // Gunakan pengecekan yang sudah terbukti aman
     if (Capacitor.isNativePlatform()) {
-      const { PushNotifications } = await import('@capacitor/push-notifications');
-      
-      // --- PERUBAHAN KUNCI #1: Ambil data user terlebih dahulu ---
-      // Ini memastikan kita punya user.id sebelum melakukan apapun.
-      const { data: { user } } = await supabase.auth.getUser();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        console.warn('Push Notifications: Pengguna belum login. Proses inisialisasi notifikasi dibatalkan.');
-        return; // Hentikan fungsi jika user tidak ada
-      }
-
-      // --- PERUBAHAN KUNCI #2: Logika penyimpanan token yang aman ---
-      // Listener untuk saat token pendaftaran diterima dari Firebase/APN
-      await PushNotifications.addListener('registration', async (token) => {
-        console.info('Token registrasi perangkat: ', token.value);
-        
-        // Langsung gunakan user.id yang sudah kita dapatkan sebelumnya
-        const { error } = await supabase
-          .from('device_tokens')
-          .upsert({ 
-            user_id: user.id, 
-            token: token.value 
-          }, { 
-            onConflict: 'user_id, token' // Gunakan onConflict yang benar jika perlu
-          });
-
-        if (error) {
-          console.error('Gagal menyimpan token perangkat:', error);
-          // Tambahkan notifikasi error yang jelas untuk debugging
-          alert(`Gagal menyimpan token notifikasi: ${error.message}`);
-        } else {
-          console.log('Token perangkat berhasil disimpan.');
+        if (!user) {
+          console.warn('Push Notifications: Pengguna belum login. Proses inisialisasi notifikasi dibatalkan.');
+          return; 
         }
-      });
 
-      // Listener untuk error pendaftaran
-      await PushNotifications.addListener('registrationError', (err) => {
-        console.error('Error registrasi notifikasi: ', err.error);
-        alert(`Registrasi notifikasi gagal: ${err.error}`);
-      });
+        await PushNotifications.addListener('registration', async (token) => {
+          console.info('Token registrasi perangkat: ', token.value);
+          
+          const { error } = await supabase
+            .from('device_tokens')
+            .upsert({ user_id: user.id, token: token.value }, { onConflict: 'user_id, token' });
 
-      // --- PERUBAHAN KUNCI #3: Alur permintaan izin yang lebih jelas ---
-      // Cek status izin saat ini
-      let permStatus = await PushNotifications.checkPermissions();
+          if (error) {
+            console.error('Gagal menyimpan token perangkat:', error);
+            alert(`Gagal menyimpan token notifikasi: ${error.message}`);
+          } else {
+            console.log('Token perangkat berhasil disimpan.');
+          }
+        });
 
-      // Jika izin belum pernah diminta ('prompt'), maka minta sekarang
-      if (permStatus.receive === 'prompt') {
-        // Pop-up akan muncul di sini
-        permStatus = await PushNotifications.requestPermissions();
+        await PushNotifications.addListener('registrationError', (err) => {
+          console.error('Error registrasi notifikasi: ', err.error);
+          alert(`Registrasi notifikasi gagal: ${err.error}`);
+        });
+
+        let permStatus = await PushNotifications.checkPermissions();
+
+        if (permStatus.receive === 'prompt') {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+        
+        if (permStatus.receive === 'granted') {
+          await PushNotifications.register();
+        } else {
+          console.warn('Pengguna menolak izin notifikasi.');
+        }
+
+      } catch (e) {
+        console.error('Inisialisasi Push Notifications gagal:', e);
+        alert(`Terjadi error pada sistem notifikasi: ${e.message}`);
       }
-      
-      // Jika izin diberikan, daftarkan perangkat untuk menerima notifikasi
-      if (permStatus.receive === 'granted') {
-        await PushNotifications.register();
-      } else {
-        // Jika izin ditolak, berikan peringatan
-        console.warn('Pengguna menolak izin notifikasi.');
-        // Anda bisa tambahkan alert di sini jika ingin memberitahu pengguna secara langsung
-        // alert('Anda tidak akan menerima notifikasi pengingat pembayaran karena izin ditolak.');
-      }
+    } else {
+        console.log("Bukan platform native, inisialisasi Push Notifications dilewati.");
     }
-  } catch (e) {
-    console.error('Inisialisasi Push Notifications gagal:', e);
-    alert(`Terjadi error pada sistem notifikasi: ${e.message}`);
-  }
 };
 
 document.addEventListener('DOMContentLoaded', async function() {
