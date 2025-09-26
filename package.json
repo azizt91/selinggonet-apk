@@ -19,6 +19,7 @@
   "dependencies": {
     "@capacitor/android": "^6.0.0",
     "@capacitor/push-notifications": "^6.0.0",
+    "capacitor-native-biometric": "^4.2.2",
     "crypto": "1.0.1",
     "googleapis": "^126.0.1"
   },

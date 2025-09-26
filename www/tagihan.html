@@ -28,6 +28,7 @@
       href="https://fonts.googleapis.com/css2?display=swap&family=Manrope%3Awght%40400%3B500%3B700%3B800&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
     />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
 </head>
 <body>
     <div
@@ -97,10 +98,29 @@
             </div>
           </div>
         </div>
-        
-        <!-- Invoice List Container with proper scrolling -->
-        <div id="invoice-list">
-          <!-- Invoices will be dynamically loaded here -->
+
+        <!-- Swiper -->
+        <div class="swiper">
+            <div class="swiper-wrapper">
+                <!-- Unpaid Content -->
+                <div class="swiper-slide">
+                    <div id="unpaid-content">
+                        <!-- Invoices will be dynamically loaded here -->
+                    </div>
+                </div>
+                <!-- Installment Content -->
+                <div class="swiper-slide">
+                    <div id="installment-content">
+                        <!-- Invoices will be dynamically loaded here -->
+                    </div>
+                </div>
+                <!-- Paid Content -->
+                <div class="swiper-slide">
+                    <div id="paid-content">
+                        <!-- Invoices will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
         </div>
         
           <!-- Fixed Floating Add Button (styled like pelanggan page) -->
@@ -299,7 +319,8 @@
       </div>
     </div>
 
-        <script src="config.js"></script>
+    <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+    <script src="config.js"></script>
     <script src="auth.js"></script>
     <script type="module" src="tagihan.js"></script>
     <script src="datetime-display.js"></script>
