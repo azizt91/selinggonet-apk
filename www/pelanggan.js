@@ -499,12 +499,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 photo_url: photoUrl,
                 idpl: `CST${Date.now()}`,
                 installation_date: new Date().toISOString(),
-                package_id: document.getElementById('customer-package').value,
-                amount: document.getElementById('customer-bill').value
+                package_id: parseInt(document.getElementById('customer-package').value),
+                amount: parseFloat(document.getElementById('customer-bill').value)
             };
 
             if (!customerData.email || !customerData.password || !customerData.package_id) {
                 showErrorNotification("Email, Password, dan Paket harus diisi.");
+                return;
+            }
+            if (isNaN(customerData.package_id) || customerData.package_id <= 0) {
+                showErrorNotification("Paket harus dipilih dengan benar.");
+                return;
+            }
+            if (isNaN(customerData.amount) || customerData.amount <= 0) {
+                showErrorNotification("Tagihan bulanan harus berupa angka yang valid.");
                 return;
             }
             if (customerData.password.length < 6) {
@@ -516,9 +524,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data, error } = await supabase.functions.invoke('create-customer', { body: customerData });
 
             if (error) {
-                showErrorNotification(error.message);
+                console.error('Supabase function error:', error);
+                showErrorNotification(`Error: ${error.message}`);
+            } else if (data && data.error) {
+                console.error('Function returned error:', data.error);
+                showErrorNotification(`Error: ${data.error}`);
             } else {
-                showSuccessNotification(data.message || 'Pelanggan berhasil ditambahkan!');
+                showSuccessNotification(data?.message || 'Pelanggan berhasil ditambahkan!');
                 await fetchData();
                 switchView('list');
             }

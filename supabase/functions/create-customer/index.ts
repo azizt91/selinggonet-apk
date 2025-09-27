@@ -11,6 +11,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
     status: 'AKTIF' | 'NONAKTIF';
     device_type?: string;
     ip_static_pppoe?: string;
+    photo_url?: string;
     idpl: string;
     installation_date: string;
     package_id: number;
@@ -31,8 +32,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
       const customerData: CustomerData = await req.json();
 
+      // Validation
       if (!customerData.password) throw new Error("Password dibutuhkan.");
       if (!customerData.package_id) throw new Error("Paket harus dipilih.");
+      if (!customerData.email) throw new Error("Email dibutuhkan.");
+      if (!customerData.full_name) throw new Error("Nama lengkap dibutuhkan.");
+
+      // Type checking
+      if (typeof customerData.package_id !== 'number' || customerData.package_id <= 0) {
+        throw new Error("Package ID harus berupa angka yang valid.");
+      }
+      if (typeof customerData.amount !== 'number' || customerData.amount <= 0) {
+        throw new Error("Amount harus berupa angka yang valid.");
+      }
 
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: customerData.email,
@@ -55,6 +67,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
           installation_date: customerData.installation_date,
           device_type: customerData.device_type,
           ip_static_pppoe: customerData.ip_static_pppoe,
+          photo_url: customerData.photo_url,
         })
         .eq('id', newUserId);
       if (profileError) throw profileError;
