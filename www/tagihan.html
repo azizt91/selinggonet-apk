@@ -189,11 +189,7 @@
         </div>
         
       </div>
-
-      <!-- Swipe Edge Indicators -->
-      <div id="swipe-edge-left" class="swipe-edge-left"></div>
-      <div id="swipe-edge-right" class="swipe-edge-right"></div>
-
+      
       <!-- Fixed Bottom Navigation -->
       <style>
         .fab-container {
@@ -325,79 +321,6 @@
         }
         .tab-button:not(.active) p {
             color: #625095 !important;
-        }
-
-        /* Swipe Animation Styles */
-        #invoice-list {
-            position: relative;
-            transform: translateX(0);
-            will-change: transform, opacity;
-        }
-
-        /* Swipe Indicator Styles */
-        .swipe-indicator {
-            background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
-            border-radius: 8px;
-            margin: 0 16px;
-            animation: swipeHint 2s ease-in-out infinite;
-        }
-
-        @keyframes swipeHint {
-            0%, 100% {
-                opacity: 0.6;
-                transform: translateX(0);
-            }
-            50% {
-                opacity: 1;
-                transform: translateX(2px);
-            }
-        }
-
-        /* Touch feedback */
-        .touch-feedback {
-            background-color: rgba(104, 63, 228, 0.1);
-            transition: background-color 0.1s ease;
-        }
-
-        /* Smooth transitions for tab switching */
-        .tab-transition {
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                       opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Swipe edge indicators */
-        .swipe-edge-left, .swipe-edge-right {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 2px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            z-index: 20;
-        }
-
-        .swipe-edge-left {
-            left: 0;
-        }
-
-        .swipe-edge-right {
-            right: 0;
-        }
-
-        /* Active swipe visual feedback */
-        .swipe-active {
-            background: rgba(104, 63, 228, 0.05);
-        }
-
-        /* Responsive swipe area */
-        @media (max-width: 768px) {
-            .swipe-indicator {
-                margin: 0 12px;
-                font-size: 10px;
-            }
         }
     </style>
 </body>
