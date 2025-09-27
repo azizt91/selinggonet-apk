@@ -1,7 +1,7 @@
 // dashboard.js (Supabase version)
 import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
-import { getUnreadNotificationCount, initializeRealTimeNotifications, sendAdminLoginNotification } from './notification-service.js';
+import { getUnreadNotificationCount } from './notification-service.js';
 import { addNotificationIconToHeader, initNotificationBadge } from './notification-badge.js';
 import { initializePushNotifications } from './capacitor-push-handler.js';
 
@@ -17,18 +17,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     addNotificationIconToHeader();
     initNotificationBadge(user.id);
 
-    // Inisialisasi real-time notifications
-    try {
-        const channel = initializeRealTimeNotifications(user.id, (notification) => {
-            console.log('📨 Received real-time notification:', notification);
-            // Update badge instantly when new notification arrives
-            initNotificationBadge(user.id);
-        });
-        console.log('📡 Real-time notifications initialized');
-    } catch (error) {
-        console.error('❌ Error setting up real-time notifications:', error);
-    }
-
     // Inisialisasi push notifications untuk mobile app
     try {
         const pushResult = await initializePushNotifications(user.id);
@@ -39,21 +27,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     } catch (error) {
         console.error('❌ Error setting up push notifications:', error);
-    }
-
-    // Send login notification to other admins
-    try {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single();
-
-        const adminName = profile?.full_name || user.email || 'Admin';
-        await sendAdminLoginNotification(adminName);
-        console.log('🔐 Login notification sent to other admins');
-    } catch (error) {
-        console.error('❌ Error sending login notification:', error);
     }
 
     // New function to populate user info
