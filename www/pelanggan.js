@@ -477,7 +477,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         .from('invoices')
                         .update({
                             package_id: parseInt(newPackageId),
-                            amount: parseFloat(newAmount)
+                            amount: parseFloat(newAmount),
+                            total_due: parseFloat(newAmount) // TAMBAHAN: total_due sama dengan amount
                         })
                         .eq('id', existingInvoice.id);
 
@@ -493,6 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             package_id: parseInt(newPackageId),
                             invoice_period: currentPeriod,
                             amount: parseFloat(newAmount),
+                            total_due: parseFloat(newAmount), // TAMBAHAN: total_due sama dengan amount
                             status: 'unpaid'
                         });
 

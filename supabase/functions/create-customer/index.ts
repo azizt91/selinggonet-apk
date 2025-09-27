@@ -54,7 +54,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: customerData.email,
         password: customerData.password,
-        email_confirm: false,
+        email_confirm: true, // AUTO CONFIRM EMAIL
       });
       console.log('Auth user creation result:', { authData: authData?.user?.id, authError });
       if (authError) throw authError;
@@ -96,6 +96,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
           invoice_period: currentMonthName + ' ' + currentYear,
           // -------------------------
           amount: customerData.amount,
+          total_due: customerData.amount, // TAMBAHAN: total_due sama dengan amount
           status: 'unpaid'
         });
       console.log('Invoice creation result:', { invoiceError });
