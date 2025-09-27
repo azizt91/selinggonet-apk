@@ -37,6 +37,26 @@ CREATE TABLE public.invoices (
   CONSTRAINT invoices_package_id_fkey FOREIGN KEY (package_id) REFERENCES public.packages(id),
   CONSTRAINT invoices_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.notification_reads (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  notification_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  read_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notification_reads_pkey PRIMARY KEY (id),
+  CONSTRAINT notification_reads_notification_id_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id),
+  CONSTRAINT notification_reads_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  body text NOT NULL,
+  recipient_role text,
+  recipient_user_id uuid,
+  url text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_recipient_user_id_fkey FOREIGN KEY (recipient_user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.packages (
   id integer NOT NULL DEFAULT nextval('packages_id_seq'::regclass),
   package_name text NOT NULL,

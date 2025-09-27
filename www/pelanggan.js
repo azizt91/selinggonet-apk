@@ -1,6 +1,8 @@
 // pelanggan.js (Supabase Version - FINAL & COMPLETE with Event Delegation)
 import { supabase } from './supabase-client.js';
 import { requireRole } from './auth.js';
+import { sendCustomerAddedNotification } from './notification-service.js';
+import { getCurrentAdminName } from './whatsapp-notification.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await requireRole('ADMIN');
@@ -519,6 +521,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showErrorNotification(error.message);
             } else {
                 showSuccessNotification(data.message || 'Pelanggan berhasil ditambahkan!');
+
+                // Send customer added notification to all admins
+                try {
+                    const adminName = await getCurrentAdminName();
+                    const customerName = customerData.full_name;
+
+                    await sendCustomerAddedNotification(adminName, customerName);
+                    console.log('👥 Customer added notification sent to all admins');
+                } catch (notificationError) {
+                    console.error('Error sending customer notification:', notificationError);
+                }
+
                 await fetchData();
                 switchView('list');
             }

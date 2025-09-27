@@ -144,7 +144,8 @@ async function saveDeviceToken(userId, token) {
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
-            throw checkError;
+            // PGRST116 = no rows found, which is OK
+            console.warn('Error checking existing token:', checkError);
         }
 
         // Jika token sudah ada, tidak perlu simpan lagi
@@ -153,18 +154,26 @@ async function saveDeviceToken(userId, token) {
             return { success: true, message: 'Token already exists' };
         }
 
-        // Simpan token baru ke database
+        // Simpan token baru ke database dengan upsert untuk handle duplikasi
         const { data, error } = await supabase
             .from('device_tokens')
-            .insert({
+            .upsert({
                 user_id: userId,
                 token: token,
                 created_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,token',
+                ignoreDuplicates: true
             })
             .select()
             .single();
 
         if (error) {
+            // Jika masih error duplikasi, anggap sebagai success
+            if (error.code === '23505') {
+                console.log('ℹ️ Token already exists (duplicate key), treating as success');
+                return { success: true, message: 'Token already exists' };
+            }
             throw error;
         }
 
@@ -172,6 +181,12 @@ async function saveDeviceToken(userId, token) {
         return { success: true, message: 'Token saved successfully', data };
 
     } catch (error) {
+        // Handle duplicate key error as success
+        if (error.code === '23505') {
+            console.log('ℹ️ Token already exists (duplicate detected), treating as success');
+            return { success: true, message: 'Token already exists' };
+        }
+
         console.error('❌ Error saving device token:', error);
         return { success: false, message: `Failed to save token: ${error.message}` };
     }

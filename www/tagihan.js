@@ -1,5 +1,6 @@
 import { supabase } from './supabase-client.js';
-import { getCurrentAdminName, showNotificationResult, sendCustomerPaymentNotification } from './whatsapp-notification.js'; // Pastikan `sendCustomerPaymentNotification` ada di sini
+import { getCurrentAdminName, showNotificationResult, sendCustomerPaymentNotification } from './whatsapp-notification.js';
+import { sendPaymentNotification, sendInvoiceCreationNotification } from './notification-service.js';
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -141,7 +142,236 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial Setup
     // ===============================================
     initializeEventListeners();
+    initializeSwipeHandlers();
     fetchData();
+
+    // ===============================================
+    // Swipe Handler for Tab Navigation
+    // ===============================================
+    function initializeSwipeHandlers() {
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+        let isSwipeActive = false;
+
+        const minSwipeDistance = 50; // Minimum distance for swipe
+        const maxVerticalDistance = 100; // Maximum vertical movement to still be considered horizontal swipe
+
+        // Define tab order
+        const tabOrder = ['unpaid', 'installment', 'paid'];
+
+        // Get the main container for swipe events
+        const swipeContainer = document.getElementById('list-view') || document.body;
+
+        // Touch start handler
+        function handleTouchStart(e) {
+            // Only handle single touch
+            if (e.touches.length !== 1) return;
+
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            isSwipeActive = true;
+
+            // Add visual feedback class
+            swipeContainer.style.transition = 'none';
+            swipeContainer.classList.add('swipe-active');
+
+            // Show edge indicators
+            showEdgeIndicators();
+        }
+
+        // Touch move handler
+        function handleTouchMove(e) {
+            if (!isSwipeActive) return;
+
+            // Prevent default scroll if we're potentially swiping horizontally
+            const touch = e.touches[0];
+            const deltaX = Math.abs(touch.clientX - touchStartX);
+            const deltaY = Math.abs(touch.clientY - touchStartY);
+
+            // If horizontal movement is greater than vertical, prevent default scroll
+            if (deltaX > deltaY && deltaX > 10) {
+                e.preventDefault();
+            }
+        }
+
+        // Touch end handler
+        function handleTouchEnd(e) {
+            if (!isSwipeActive) return;
+
+            const touch = e.changedTouches[0];
+            touchEndX = touch.clientX;
+            touchEndY = touch.clientY;
+
+            handleSwipe();
+            isSwipeActive = false;
+
+            // Reset transition and remove visual feedback
+            swipeContainer.style.transition = '';
+            swipeContainer.classList.remove('swipe-active');
+
+            // Hide edge indicators
+            hideEdgeIndicators();
+        }
+
+        // Swipe detection and handling
+        function handleSwipe() {
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const absDeltaX = Math.abs(deltaX);
+            const absDeltaY = Math.abs(deltaY);
+
+            // Check if it's a valid horizontal swipe
+            if (absDeltaX < minSwipeDistance || absDeltaY > maxVerticalDistance) {
+                return;
+            }
+
+            // Determine swipe direction
+            const currentTabIndex = tabOrder.indexOf(currentTab);
+            let newTabIndex;
+
+            if (deltaX > 0) {
+                // Swipe right - go to previous tab
+                newTabIndex = currentTabIndex - 1;
+            } else {
+                // Swipe left - go to next tab
+                newTabIndex = currentTabIndex + 1;
+            }
+
+            // Check bounds
+            if (newTabIndex < 0 || newTabIndex >= tabOrder.length) {
+                // Add bounce effect for edge swipes
+                addBounceEffect(deltaX > 0 ? 'right' : 'left');
+                return;
+            }
+
+            // Switch to new tab with animation
+            const newTab = tabOrder[newTabIndex];
+            switchTabWithAnimation(newTab, deltaX > 0 ? 'right' : 'left');
+        }
+
+        // Add bounce effect for edge swipes
+        function addBounceEffect(direction) {
+            const container = document.getElementById('invoice-list');
+            if (!container) return;
+
+            const translateX = direction === 'right' ? '10px' : '-10px';
+            container.style.transform = `translateX(${translateX})`;
+            container.style.transition = 'transform 0.2s ease-out';
+
+            setTimeout(() => {
+                container.style.transform = 'translateX(0)';
+                setTimeout(() => {
+                    container.style.transition = '';
+                }, 200);
+            }, 100);
+        }
+
+        // Switch tab with slide animation
+        function switchTabWithAnimation(newTab, direction) {
+            const container = document.getElementById('invoice-list');
+            if (!container) {
+                // Fallback to normal tab switch
+                switchTab(newTab);
+                return;
+            }
+
+            // Add slide animation
+            const translateX = direction === 'right' ? '50px' : '-50px';
+            container.style.transform = `translateX(${translateX})`;
+            container.style.opacity = '0.7';
+            container.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+
+            setTimeout(() => {
+                // Switch tab
+                switchTab(newTab);
+
+                // Slide back in from opposite direction
+                const slideInX = direction === 'right' ? '-50px' : '50px';
+                container.style.transform = `translateX(${slideInX})`;
+
+                setTimeout(() => {
+                    container.style.transform = 'translateX(0)';
+                    container.style.opacity = '1';
+
+                    setTimeout(() => {
+                        container.style.transition = '';
+                    }, 300);
+                }, 50);
+            }, 150);
+        }
+
+        // Show edge indicators based on current tab
+        function showEdgeIndicators() {
+            const currentTabIndex = tabOrder.indexOf(currentTab);
+            const leftIndicator = document.getElementById('swipe-edge-left');
+            const rightIndicator = document.getElementById('swipe-edge-right');
+
+            if (leftIndicator && currentTabIndex > 0) {
+                leftIndicator.style.opacity = '0.5';
+            }
+            if (rightIndicator && currentTabIndex < tabOrder.length - 1) {
+                rightIndicator.style.opacity = '0.5';
+            }
+        }
+
+        // Hide edge indicators
+        function hideEdgeIndicators() {
+            const leftIndicator = document.getElementById('swipe-edge-left');
+            const rightIndicator = document.getElementById('swipe-edge-right');
+
+            if (leftIndicator) leftIndicator.style.opacity = '0';
+            if (rightIndicator) rightIndicator.style.opacity = '0';
+        }
+
+        // Add touch event listeners
+        swipeContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+        swipeContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+        swipeContainer.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+        // Add visual indicator for swipe availability
+        addSwipeIndicator();
+    }
+
+    // Add visual indicator that tabs can be swiped
+    function addSwipeIndicator() {
+        // Add swipe hint to tab container
+        const tabContainer = document.querySelector('.flex.border-b.border-\\[\\#d6d1e6\\]');
+        if (!tabContainer) return;
+
+        // Create swipe indicator
+        const swipeHint = document.createElement('div');
+        swipeHint.className = 'swipe-indicator flex items-center justify-center py-2';
+        swipeHint.innerHTML = `
+            <div class="flex items-center gap-1 text-xs text-gray-400">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 12l5-5 5 5-1.41 1.41L12 9.83l-3.59 3.58L7 12z"/>
+                </svg>
+                <span>Geser untuk pindah tab</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 12l5-5 5 5-1.41 1.41L12 9.83l-3.59 3.58L7 12z"/>
+                </svg>
+            </div>
+        `;
+
+        // Insert after tab container
+        tabContainer.parentNode.insertBefore(swipeHint, tabContainer.nextSibling);
+
+        // Auto-hide hint after 5 seconds
+        setTimeout(() => {
+            if (swipeHint.parentNode) {
+                swipeHint.style.transition = 'opacity 0.5s ease-out';
+                swipeHint.style.opacity = '0';
+                setTimeout(() => {
+                    if (swipeHint.parentNode) {
+                        swipeHint.remove();
+                    }
+                }, 500);
+            }
+        }, 5000);
+    }
 
     // ===============================================
     // Event Listeners Setup
@@ -843,6 +1073,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
             if (data && data.status === 'success') {
                 showSuccessNotification(data.message);
+
+                // Send invoice creation notification to all admins
+                try {
+                    const adminName = await getCurrentAdminName();
+                    const invoiceCount = data.invoice_count || 0;
+                    const currentPeriod = `${new Date().toLocaleString('id-ID', { month: 'long' })} ${new Date().getFullYear()}`;
+
+                    await sendInvoiceCreationNotification(adminName, invoiceCount, currentPeriod);
+                    console.log('📄 Invoice creation notification sent to all admins');
+                } catch (notificationError) {
+                    console.error('Error sending invoice notification:', notificationError);
+                }
+
                 fetchData();
             } else {
                 throw new Error(data.message || 'Terjadi kesalahan di server.');

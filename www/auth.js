@@ -1,7 +1,30 @@
-// auth.js (Supabase version)
+// auth.js (Supabase version with Persistent Login)
 import { supabase } from './supabase-client.js';
 
-// --- Session Check ---
+// --- Silent Session Check ---
+// Checks for an active session WITHOUT redirecting or showing alerts
+// Returns the user object if a session exists, null if not
+export async function checkAuthSilent() {
+    try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+            console.error('Error getting session:', error.message);
+            return null;
+        }
+
+        if (!session) {
+            return null;
+        }
+
+        return session.user;
+    } catch (error) {
+        console.error('Silent auth check error:', error);
+        return null;
+    }
+}
+
+// --- Session Check with Redirect ---
 // Checks for an active session. If none, redirects to login.
 // Returns the user object if a session exists.
 export async function checkAuth() {
@@ -14,12 +37,47 @@ export async function checkAuth() {
     }
 
     if (!session) {
-        alert('Anda harus login untuk mengakses halaman ini.');
+        // Remove annoying alert, just redirect silently
         window.location.href = 'index.html';
         return null;
     }
 
     return session.user;
+}
+
+// --- Auto Login Check ---
+// Check if user is already logged in and redirect appropriately
+export async function checkAutoLogin() {
+    const user = await checkAuthSilent();
+
+    if (user) {
+        // User is logged in, redirect based on their role
+        try {
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            if (error || !profile) {
+                console.error('Error fetching profile for auto-login:', error);
+                return false;
+            }
+
+            // Redirect based on role
+            if (profile.role === 'ADMIN') {
+                window.location.href = 'dashboard.html';
+            } else if (profile.role === 'USER') {
+                window.location.href = 'pelanggan_dashboard.html';
+            }
+            return true;
+        } catch (error) {
+            console.error('Auto-login error:', error);
+            return false;
+        }
+    }
+
+    return false;
 }
 
 // --- Role-specific Access Control ---
@@ -40,8 +98,7 @@ export async function requireRole(requiredRole) {
         }
 
         if (profile.role !== requiredRole) {
-            alert(`Akses ditolak. Halaman ini hanya untuk ${requiredRole}.`);
-            // Redirect to a relevant page based on their actual role if needed
+            // Remove annoying alert, just redirect silently
             window.location.href = profile.role === 'ADMIN' ? 'dashboard.html' : 'pelanggan_dashboard.html';
             return null;
         }
@@ -64,13 +121,37 @@ export function initLogout(buttonId) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             if (confirm('Yakin ingin logout?')) {
-                const { error } = await supabase.auth.signOut();
-                if (error) {
-                    console.error('Error logging out:', error.message);
-                    alert('Gagal untuk logout. Silakan coba lagi.');
-                } else {
-                    sessionStorage.clear(); // Clear any remaining session data
+                console.log('🚪 Logging out user...');
+
+                try {
+                    // Clear Supabase session
+                    const { error } = await supabase.auth.signOut();
+
+                    if (error) {
+                        console.error('Error logging out:', error.message);
+                        alert('Gagal untuk logout. Silakan coba lagi.');
+                        return;
+                    }
+
+                    // Clear all browser storage
+                    sessionStorage.clear();
+                    localStorage.removeItem('supabase.auth.token');
+
+                    // Clear any other auth-related localStorage items
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('sb-') || key.includes('supabase')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+
+                    console.log('✅ Logout successful');
+
+                    // Redirect to login page
                     window.location.href = 'index.html';
+
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    alert('Gagal untuk logout. Silakan coba lagi.');
                 }
             }
         });
