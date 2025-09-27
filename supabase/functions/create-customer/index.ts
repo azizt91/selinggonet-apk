@@ -61,11 +61,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
       if (!authData.user) throw new Error("Gagal membuat pengguna di sistem otentikasi.");
       const newUserId = authData.user.id;
 
-      console.log('Updating profile for user:', newUserId);
+      console.log('Inserting profile for user:', newUserId);
 
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
-        .update({
+        .insert({
+          id: newUserId, // PENTING: Set ID sama dengan user ID
           idpl: customerData.idpl,
           full_name: customerData.full_name,
           address: customerData.address,
@@ -76,9 +77,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
           device_type: customerData.device_type,
           ip_static_pppoe: customerData.ip_static_pppoe,
           photo_url: customerData.photo_url,
-        })
-        .eq('id', newUserId);
-      console.log('Profile update result:', { profileError });
+        });
+      console.log('Profile insert result:', { profileError });
       if (profileError) throw profileError;
 
       console.log('Creating invoice...');

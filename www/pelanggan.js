@@ -546,6 +546,39 @@ document.addEventListener('DOMContentLoaded', async () => {
                 photoUrl = 'https://sb-admin-pro.startbootstrap.com/assets/img/illustrations/profiles/profile-1.png';
             }
             
+            // Generate IDPL berurut
+            let idpl = 'CST001'; // Default jika belum ada data
+
+            try {
+                // Ambil semua IDPL yang dimulai dengan CST
+                const { data: customers, error: customersError } = await supabase
+                    .from('profiles')
+                    .select('idpl')
+                    .like('idpl', 'CST%');
+
+                if (!customersError && customers && customers.length > 0) {
+                    // Extract semua nomor dan cari yang tertinggi
+                    const numbers = customers
+                        .map(customer => {
+                            const match = customer.idpl.match(/^CST(\d+)$/);
+                            return match ? parseInt(match[1], 10) : 0;
+                        })
+                        .filter(num => !isNaN(num));
+
+                    if (numbers.length > 0) {
+                        const highestNumber = Math.max(...numbers);
+                        const nextNumber = highestNumber + 1;
+                        // Format ke 3 digit dengan leading zeros
+                        idpl = `CST${nextNumber.toString().padStart(3, '0')}`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error getting last IDPL:', error);
+                // Jika error, gunakan default CST001
+            }
+
+            console.log('Generated IDPL:', idpl);
+
             const customerData = {
                 email: document.getElementById('customer-email').value,
                 password: document.getElementById('customer-password').value,
@@ -557,7 +590,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 device_type: document.getElementById('customer-device').value,
                 ip_static_pppoe: document.getElementById('customer-ip').value,
                 photo_url: photoUrl,
-                idpl: `CST${Date.now()}`,
+                idpl: idpl,
                 installation_date: new Date().toISOString(),
                 package_id: parseInt(document.getElementById('customer-package').value),
                 amount: parseFloat(document.getElementById('customer-bill').value)
