@@ -3,7 +3,7 @@
 
 import { supabase } from './supabase-client.js';
 
-// Import Capacitor Push Notifications
+// Capacitor Push Notifications reference
 let PushNotifications;
 
 // Cek apakah aplikasi berjalan di environment Capacitor (mobile)
@@ -15,6 +15,13 @@ const isCapacitorApp = () => {
 export async function initializePushNotifications(userId) {
     console.log('🔔 Initializing push notifications...');
 
+    // Debug: Log Capacitor info
+    console.log('🔍 Capacitor debug info:');
+    console.log('- window.Capacitor exists:', !!window.Capacitor);
+    console.log('- isNativePlatform():', window.Capacitor?.isNativePlatform?.());
+    console.log('- Platform:', window.Capacitor?.getPlatform?.());
+    console.log('- Available plugins:', Object.keys(window.Capacitor?.Plugins || {}));
+
     // Hanya jalankan jika di environment Capacitor (mobile app)
     if (!isCapacitorApp()) {
         console.log('🌐 Not running in Capacitor app, skipping push notifications setup');
@@ -22,9 +29,14 @@ export async function initializePushNotifications(userId) {
     }
 
     try {
-        // Import PushNotifications dari Capacitor
-        const { PushNotifications: CapacitorPushNotifications } = await import('@capacitor/push-notifications');
-        PushNotifications = CapacitorPushNotifications;
+        // Akses PushNotifications dari Capacitor global object
+        if (window.Capacitor?.Plugins?.PushNotifications) {
+            PushNotifications = window.Capacitor.Plugins.PushNotifications;
+            console.log('✅ PushNotifications plugin found');
+        } else {
+            console.log('❌ Available Capacitor plugins:', Object.keys(window.Capacitor?.Plugins || {}));
+            throw new Error('PushNotifications plugin not available');
+        }
 
         // Request permission untuk notifikasi
         const permissionResult = await requestNotificationPermission();
@@ -249,9 +261,19 @@ function showInAppNotification(notification) {
 
 // Fungsi untuk mendapatkan device token secara manual (jika diperlukan)
 export async function getDeviceToken() {
-    if (!isCapacitorApp() || !PushNotifications) {
-        console.log('Push notifications not available');
+    if (!isCapacitorApp()) {
+        console.log('Push notifications not available - not in Capacitor environment');
         return null;
+    }
+
+    if (!PushNotifications) {
+        // Coba akses PushNotifications lagi
+        if (window.Capacitor?.Plugins?.PushNotifications) {
+            PushNotifications = window.Capacitor.Plugins.PushNotifications;
+        } else {
+            console.log('Push notifications not available - plugin not found');
+            return null;
+        }
     }
 
     try {
