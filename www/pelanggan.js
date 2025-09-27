@@ -581,7 +581,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             setButtonLoading(saveBtn, true, 'Simpan');
+
+            // Debug: Log data yang akan dikirim
+            console.log('Customer data to be sent:', customerData);
+
             const { data, error } = await supabase.functions.invoke('create-customer', { body: customerData });
+
+            // Debug: Log response
+            console.log('Supabase function response:', { data, error });
 
             if (error) {
                 console.error('Supabase function error:', error);

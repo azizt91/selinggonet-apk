@@ -25,12 +25,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
     }
 
     try {
+      console.log('=== CREATE CUSTOMER FUNCTION START ===');
+
       const supabaseAdmin = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
       );
 
       const customerData: CustomerData = await req.json();
+      console.log('Received customer data:', JSON.stringify(customerData, null, 2));
 
       // Validation
       if (!customerData.password) throw new Error("Password dibutuhkan.");
@@ -46,14 +49,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
         throw new Error("Amount harus berupa angka yang valid.");
       }
 
+      console.log('Validation passed, creating auth user...');
+
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: customerData.email,
         password: customerData.password,
         email_confirm: false,
       });
+      console.log('Auth user creation result:', { authData: authData?.user?.id, authError });
       if (authError) throw authError;
       if (!authData.user) throw new Error("Gagal membuat pengguna di sistem otentikasi.");
       const newUserId = authData.user.id;
+
+      console.log('Updating profile for user:', newUserId);
 
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
@@ -70,7 +78,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
           photo_url: customerData.photo_url,
         })
         .eq('id', newUserId);
+      console.log('Profile update result:', { profileError });
       if (profileError) throw profileError;
+
+      console.log('Creating invoice...');
 
       const now = new Date();
       const currentMonthName = new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(now);
@@ -87,7 +98,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
           amount: customerData.amount,
           status: 'unpaid'
         });
+      console.log('Invoice creation result:', { invoiceError });
       if (invoiceError) throw invoiceError;
+
+      console.log('Customer creation completed successfully');
 
       return new Response(JSON.stringify({ message: "Pelanggan berhasil dibuat" }), {
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
@@ -95,6 +109,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
       });
 
     } catch (error) {
+      console.error('Error in create-customer function:', error);
       return new Response(JSON.stringify({ error: error.message }), {
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
         status: 400,
