@@ -7,13 +7,14 @@ import admin from "https://esm.sh/v135/firebase-admin@11.10.1/deno/firebase-admi
 try {
   // Mengambil kunci rahasia yang sudah kita simpan di Supabase Secrets
   const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
-  
+
   // Hanya inisialisasi jika belum ada
   if (admin.apps.length === 0) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.project_id,
     });
-    console.log('Firebase Admin SDK berhasil diinisialisasi.');
+    console.log('Firebase Admin SDK berhasil diinisialisasi dengan project ID:', serviceAccount.project_id);
   }
 } catch (e) {
   console.error('Gagal menginisialisasi Firebase Admin SDK:', e.message);
