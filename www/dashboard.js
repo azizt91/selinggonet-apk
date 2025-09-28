@@ -3,7 +3,6 @@ import { supabase } from './supabase-client.js';
 import { requireRole, initLogout } from './auth.js';
 import { getUnreadNotificationCount } from './notification-service.js';
 import { addNotificationIconToHeader, initNotificationBadge } from './notification-badge.js';
-import { initializePushNotifications } from './capacitor-push-handler.js';
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Ensure the user is an ADMIN, otherwise redirect.
@@ -17,17 +16,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     addNotificationIconToHeader();
     initNotificationBadge(user.id);
 
-    // Inisialisasi push notifications untuk mobile app
-    try {
-        const pushResult = await initializePushNotifications(user.id);
-        if (pushResult.success) {
-            console.log('✅ Push notifications setup completed');
-        } else {
-            console.log('ℹ️ Push notifications not available:', pushResult.message);
-        }
-    } catch (error) {
-        console.error('❌ Error setting up push notifications:', error);
-    }
 
     // New function to populate user info
     async function populateUserInfo(user) {

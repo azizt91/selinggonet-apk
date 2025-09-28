@@ -1,7 +1,6 @@
 // pelanggan_dashboard.js - Customer Dashboard with 4 Cards and Loading Indicators
 import { supabase } from './supabase-client.js';
 import { checkAuth, requireRole, initLogout } from './auth.js';
-import { initializePushNotifications } from './capacitor-push-handler.js';
 
 let currentUser = null;
 let currentProfile = null;
@@ -13,17 +12,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     initLogout('customer-logout-btn');
 
-    // Inisialisasi push notifications untuk mobile app
-    try {
-        const pushResult = await initializePushNotifications(currentUser.id);
-        if (pushResult.success) {
-            console.log('✅ Push notifications setup completed for customer');
-        } else {
-            console.log('ℹ️ Push notifications not available:', pushResult.message);
-        }
-    } catch (error) {
-        console.error('❌ Error setting up push notifications:', error);
-    }
 
     // DOM Elements
     const welcomeText = document.getElementById('welcome-text');
