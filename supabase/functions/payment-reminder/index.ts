@@ -18,15 +18,27 @@ serve(async (req) => {
       if (firebasePrivateKey && firebaseProjectId && firebaseClientEmail) {
         // Gunakan env variables terpisah
         console.log('Using separate environment variables for Firebase config');
+
+        // Debug: Log private key info (JANGAN LOG FULL KEY!)
+        console.log('Private key length:', firebasePrivateKey.length);
+        console.log('Private key starts with:', firebasePrivateKey.substring(0, 50));
+        console.log('Private key ends with:', firebasePrivateKey.substring(firebasePrivateKey.length - 50));
+
+        const processedPrivateKey = firebasePrivateKey.replace(/\\n/g, '\n');
+        console.log('Processed private key length:', processedPrivateKey.length);
+
         serviceAccountConfig = {
           projectId: firebaseProjectId,
           clientEmail: firebaseClientEmail,
-          privateKey: firebasePrivateKey.replace(/\\n/g, '\n'),
+          privateKey: processedPrivateKey,
         };
       } else {
         // Fallback ke JSON service account
         console.log('Using JSON service account from FIREBASE_SERVICE_ACCOUNT_KEY');
         const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
+
+        console.log('JSON private key length:', serviceAccount.private_key.length);
+        console.log('JSON private key starts with:', serviceAccount.private_key.substring(0, 50));
 
         serviceAccountConfig = {
           projectId: serviceAccount.project_id,
