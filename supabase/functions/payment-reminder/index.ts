@@ -8,6 +8,11 @@ try {
   // Mengambil kunci rahasia yang sudah kita simpan di Supabase Secrets
   const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
 
+  // Fix private key formatting - replace \\n with actual newlines
+  if (serviceAccount.private_key) {
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+  }
+
   // Hanya inisialisasi jika belum ada
   if (admin.apps.length === 0) {
     admin.initializeApp({
