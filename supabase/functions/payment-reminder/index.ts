@@ -5,36 +5,40 @@ import admin from "https://esm.sh/v135/firebase-admin@11.10.1/deno/firebase-admi
 // Inisialisasi Firebase Admin SDK
 // SDK ini digunakan untuk mengirim notifikasi dari server
 try {
-  // Mengambil kunci rahasia yang sudah kita simpan di Supabase Secrets
-  const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
+  // Approach 1: Coba pakai environment variables terpisah
+  const firebasePrivateKey = Deno.env.get('FIREBASE_PRIVATE_KEY');
+  const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID');
+  const firebaseClientEmail = Deno.env.get('FIREBASE_CLIENT_EMAIL');
 
-  // Fix private key formatting untuk Deno environment
-  if (serviceAccount.private_key) {
-    // Replace escaped newlines dengan actual newlines
-    serviceAccount.private_key = serviceAccount.private_key
-      .replace(/\\n/g, '\n')
-      .trim();
+  let serviceAccountConfig;
 
-    // Pastikan format private key benar (harus dimulai dan diakhiri dengan header/footer)
-    if (!serviceAccount.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
-      throw new Error('Invalid private key format: missing BEGIN header');
-    }
-    if (!serviceAccount.private_key.endsWith('-----END PRIVATE KEY-----')) {
-      throw new Error('Invalid private key format: missing END footer');
-    }
+  if (firebasePrivateKey && firebaseProjectId && firebaseClientEmail) {
+    // Gunakan env variables terpisah
+    console.log('Using separate environment variables for Firebase config');
+    serviceAccountConfig = {
+      projectId: firebaseProjectId,
+      clientEmail: firebaseClientEmail,
+      privateKey: firebasePrivateKey.replace(/\\n/g, '\n'),
+    };
+  } else {
+    // Fallback ke JSON service account
+    console.log('Using JSON service account from FIREBASE_SERVICE_ACCOUNT_KEY');
+    const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
+
+    serviceAccountConfig = {
+      projectId: serviceAccount.project_id,
+      clientEmail: serviceAccount.client_email,
+      privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
+    };
   }
 
   // Hanya inisialisasi jika belum ada
   if (admin.apps.length === 0) {
     admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: serviceAccount.project_id,
-        clientEmail: serviceAccount.client_email,
-        privateKey: serviceAccount.private_key,
-      }),
-      projectId: serviceAccount.project_id,
+      credential: admin.credential.cert(serviceAccountConfig),
+      projectId: serviceAccountConfig.projectId,
     });
-    console.log('Firebase Admin SDK berhasil diinisialisasi dengan project ID:', serviceAccount.project_id);
+    console.log('Firebase Admin SDK berhasil diinisialisasi dengan project ID:', serviceAccountConfig.projectId);
   }
 } catch (e) {
   console.error('Gagal menginisialisasi Firebase Admin SDK:', e.message);
