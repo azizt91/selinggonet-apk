@@ -8,15 +8,30 @@ try {
   // Mengambil kunci rahasia yang sudah kita simpan di Supabase Secrets
   const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
 
-  // Fix private key formatting - replace \\n with actual newlines
+  // Fix private key formatting untuk Deno environment
   if (serviceAccount.private_key) {
-    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    // Replace escaped newlines dengan actual newlines
+    serviceAccount.private_key = serviceAccount.private_key
+      .replace(/\\n/g, '\n')
+      .trim();
+
+    // Pastikan format private key benar (harus dimulai dan diakhiri dengan header/footer)
+    if (!serviceAccount.private_key.startsWith('-----BEGIN PRIVATE KEY-----')) {
+      throw new Error('Invalid private key format: missing BEGIN header');
+    }
+    if (!serviceAccount.private_key.endsWith('-----END PRIVATE KEY-----')) {
+      throw new Error('Invalid private key format: missing END footer');
+    }
   }
 
   // Hanya inisialisasi jika belum ada
   if (admin.apps.length === 0) {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert({
+        projectId: serviceAccount.project_id,
+        clientEmail: serviceAccount.client_email,
+        privateKey: serviceAccount.private_key,
+      }),
       projectId: serviceAccount.project_id,
     });
     console.log('Firebase Admin SDK berhasil diinisialisasi dengan project ID:', serviceAccount.project_id);
