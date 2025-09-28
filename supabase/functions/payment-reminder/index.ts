@@ -2,52 +2,51 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import admin from "https://esm.sh/v135/firebase-admin@11.10.1/deno/firebase-admin.js";
 
-// Inisialisasi Firebase Admin SDK
-// SDK ini digunakan untuk mengirim notifikasi dari server
-try {
-  // Approach 1: Coba pakai environment variables terpisah
-  const firebasePrivateKey = Deno.env.get('FIREBASE_PRIVATE_KEY');
-  const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID');
-  const firebaseClientEmail = Deno.env.get('FIREBASE_CLIENT_EMAIL');
-
-  let serviceAccountConfig;
-
-  if (firebasePrivateKey && firebaseProjectId && firebaseClientEmail) {
-    // Gunakan env variables terpisah
-    console.log('Using separate environment variables for Firebase config');
-    serviceAccountConfig = {
-      projectId: firebaseProjectId,
-      clientEmail: firebaseClientEmail,
-      privateKey: firebasePrivateKey.replace(/\\n/g, '\n'),
-    };
-  } else {
-    // Fallback ke JSON service account
-    console.log('Using JSON service account from FIREBASE_SERVICE_ACCOUNT_KEY');
-    const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
-
-    serviceAccountConfig = {
-      projectId: serviceAccount.project_id,
-      clientEmail: serviceAccount.client_email,
-      privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
-    };
-  }
-
-  // Hanya inisialisasi jika belum ada
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccountConfig),
-      projectId: serviceAccountConfig.projectId,
-    });
-    console.log('Firebase Admin SDK berhasil diinisialisasi dengan project ID:', serviceAccountConfig.projectId);
-  }
-} catch (e) {
-  console.error('Gagal menginisialisasi Firebase Admin SDK:', e.message);
-}
-
 console.log('Fungsi payment-reminder dipanggil.');
 
 serve(async (req) => {
   try {
+    // Inisialisasi Firebase Admin SDK di dalam serve function
+    try {
+      // Approach 1: Coba pakai environment variables terpisah
+      const firebasePrivateKey = Deno.env.get('FIREBASE_PRIVATE_KEY');
+      const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID');
+      const firebaseClientEmail = Deno.env.get('FIREBASE_CLIENT_EMAIL');
+
+      let serviceAccountConfig;
+
+      if (firebasePrivateKey && firebaseProjectId && firebaseClientEmail) {
+        // Gunakan env variables terpisah
+        console.log('Using separate environment variables for Firebase config');
+        serviceAccountConfig = {
+          projectId: firebaseProjectId,
+          clientEmail: firebaseClientEmail,
+          privateKey: firebasePrivateKey.replace(/\\n/g, '\n'),
+        };
+      } else {
+        // Fallback ke JSON service account
+        console.log('Using JSON service account from FIREBASE_SERVICE_ACCOUNT_KEY');
+        const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_KEY')!);
+
+        serviceAccountConfig = {
+          projectId: serviceAccount.project_id,
+          clientEmail: serviceAccount.client_email,
+          privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
+        };
+      }
+
+      // Hanya inisialisasi jika belum ada
+      if (admin.apps.length === 0) {
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccountConfig),
+          projectId: serviceAccountConfig.projectId,
+        });
+        console.log('Firebase Admin SDK berhasil diinisialisasi dengan project ID:', serviceAccountConfig.projectId);
+      }
+    } catch (e) {
+      console.error('Gagal menginisialisasi Firebase Admin SDK:', e.message);
+      throw new Error(`Firebase initialization failed: ${e.message}`);
+    }
     // Membuat koneksi ke Supabase menggunakan akses level admin (service role)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
