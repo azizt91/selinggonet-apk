@@ -24,6 +24,26 @@ export function initNotificationBadge(userId) {
 /**
  * Update tampilan badge notifikasi
  */
+// async function updateNotificationBadge(userId) {
+//     const badge = document.getElementById('notification-badge');
+//     if (!badge) return;
+
+//     try {
+//         const unreadCount = await getUnreadNotificationCount(userId);
+        
+//         if (unreadCount > 0) {
+//             badge.classList.remove('hidden');
+//             // Hapus angka, hanya tampilkan dot merah
+//             badge.textContent = '';
+//         } else {
+//             badge.classList.add('hidden');
+//         }
+//     } catch (error) {
+//         console.error('Error updating notification badge:', error);
+//         badge.classList.add('hidden');
+//     }
+// }
+
 async function updateNotificationBadge(userId) {
     const badge = document.getElementById('notification-badge');
     if (!badge) return;
@@ -32,9 +52,11 @@ async function updateNotificationBadge(userId) {
         const unreadCount = await getUnreadNotificationCount(userId);
         
         if (unreadCount > 0) {
+            badge.textContent = unreadCount;
             badge.classList.remove('hidden');
-            // Hapus angka, hanya tampilkan dot merah
-            badge.textContent = '';
+            // Adjust badge style for number display
+            badge.classList.remove('w-3', 'h-3');
+            badge.classList.add('min-w-[1.25rem]', 'h-5', 'px-1', 'text-xs', 'flex', 'items-center', 'justify-center', 'top-0', 'right-0');
         } else {
             badge.classList.add('hidden');
         }
