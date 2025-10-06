@@ -212,6 +212,35 @@
             background: rgba(255, 255, 255, 0.9);
             border-radius: 8px;
         }
+
+        /* Eye toggle button */
+        .eye-toggle-btn {
+            opacity: 0.8;
+            transition: opacity 0.3s ease, transform 0.2s ease;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .eye-toggle-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .eye-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Value blur transition */
+        .value-transition {
+            transition: filter 0.3s ease;
+        }
+
+        .value-hidden {
+            filter: blur(0px);
+        }
     </style>
 </head>
 <body>
