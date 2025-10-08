@@ -244,7 +244,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         data.forEach(profile => {
-            const statusColor = profile.status === 'AKTIF' ? 'bg-green-500' : 'bg-red-500';
+            // Status pills styling
+            const statusBadge = profile.status === 'AKTIF' 
+                ? '<span class="px-3 py-1 rounded-full bg-green-500 text-white text-xs font-semibold">Aktif</span>'
+                : '<span class="px-3 py-1 rounded-full bg-red-500 text-white text-xs font-semibold">Cabut</span>';
             
             // Untuk pelanggan nonaktif, tampilkan tanggal cabut. Untuk aktif, tampilkan tanggal terdaftar
             let dateInfo;
@@ -267,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <p class="text-[#110e1b] text-base font-medium truncate">${profile.full_name}</p>
                         <p class="text-[#625095] text-sm">${dateInfo}</p>
                     </div>
-                    <div class="shrink-0 ml-auto"><div class="flex size-7 items-center justify-center"><div class="size-3 rounded-full ${statusColor}"></div></div></div>
+                    <div class="shrink-0 ml-auto">${statusBadge}</div>
                 </div>`;
             customerItem.addEventListener('click', () => openDetailView(profile.id));
             customerList.appendChild(customerItem);
