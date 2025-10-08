@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initial Setup
     populateFilters();
     initializeEventListeners();
+    initializeStickyHeader(); // Initialize sticky header behavior
     
     // Show loading immediately before any async operations
     showLoading();
@@ -107,6 +108,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             option.textContent = tahun;
             filterTahun.appendChild(option);
         }
+    }
+
+    // Sticky Header Management
+    function initializeStickyHeader() {
+        const stickyElement = document.querySelector('.header-sticky');
+        if (!stickyElement) return;
+        
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.intersectionRatio < 1) {
+                    stickyElement.classList.add('is-sticky');
+                } else {
+                    stickyElement.classList.remove('is-sticky');
+                }
+            },
+            { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+        );
+        
+        observer.observe(stickyElement);
     }
 
     function initializeEventListeners() {

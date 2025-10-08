@@ -24,10 +24,28 @@
       href="https://fonts.googleapis.com/css2?display=swap&family=Manrope%3Awght%40400%3B500%3B700%3B800&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
     />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+        .search-filter-sticky {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background-color: #f9f8fb;
+        }
+        
+        .search-filter-sticky.is-sticky {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Override parent overflow for sticky to work */
+        #list-view {
+            overflow: visible !important;
+        }
+    </style>
 </head>
-<body>
+<body style="overflow-x: hidden;">
     <div
-      class="relative flex h-auto min-h-screen w-full flex-col bg-[#f9f8fb] group/design-root overflow-x-hidden"
+      class="relative flex h-auto min-h-screen w-full flex-col bg-[#f9f8fb] group/design-root"
       style='font-family: Manrope, "Noto Sans", sans-serif;'
     >
       <div class="flex-1 pb-24">
@@ -37,24 +55,27 @@
               <h2 class="text-[#110e1b] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">Pelanggan</h2>
             </header>
             
-            <div class="px-4 py-3">
-              <label class="relative flex flex-col min-w-40 h-12 w-full">
-                <div class="flex w-full flex-1 items-stretch rounded-full h-full overflow-hidden bg-[#eae8f3]">
-                  <div class="text-[#625095] flex items-center justify-center pl-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
+            <!-- Sticky Search & Filter Container -->
+            <div class="search-filter-sticky">
+              <div class="px-4 py-3 bg-[#f9f8fb]">
+                <label class="relative flex flex-col min-w-40 h-12 w-full">
+                  <div class="flex w-full flex-1 items-stretch rounded-full h-full overflow-hidden bg-[#eae8f3]">
+                    <div class="text-[#625095] flex items-center justify-center pl-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
+                    </div>
+                    <input id="search-input" placeholder="Cari pelanggan..." class="form-input flex w-full min-w-0 flex-1 resize-none text-[#110e1b] focus:outline-0 focus:ring-0 border-none bg-[#eae8f3] h-full placeholder:text-[#625095] px-4 pl-2 text-base"/>
                   </div>
-                  <input id="search-input" placeholder="Cari pelanggan..." class="form-input flex w-full min-w-0 flex-1 resize-none text-[#110e1b] focus:outline-0 focus:ring-0 border-none bg-[#eae8f3] h-full placeholder:text-[#625095] px-4 pl-2 text-base"/>
-                </div>
-                <button id="clear-search-btn" class="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-400 text-white rounded-full flex items-center justify-center hidden hover:bg-gray-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111,163.51,47.51a12,12,0,0,1,17,17L145,128Z"></path></svg>
-                </button>
-              </label>
-            </div>
-            
-            <div class="flex gap-3 p-3 flex-wrap pr-4">
-              <button id="filter-all" class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-[#eae8f3] pl-4 pr-4"><p class="text-[#110e1b] text-sm font-medium">Semua</p></button>
-              <button id="filter-active" class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-[#eae8f3] pl-4 pr-4"><p class="text-[#110e1b] text-sm font-medium">Aktif</p></button>
-              <button id="filter-inactive" class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-[#eae8f3] pl-4 pr-4"><p class="text-[#110e1b] text-sm font-medium">Tidak Aktif</p></button>
+                  <button id="clear-search-btn" class="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-gray-400 text-white rounded-full flex items-center justify-center hidden hover:bg-gray-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111,163.51,47.51a12,12,0,0,1,17,17L145,128Z"></path></svg>
+                  </button>
+                </label>
+              </div>
+              
+              <div class="flex gap-3 p-3 pb-4 flex-wrap pr-4 bg-[#f9f8fb]">
+                <button id="filter-all" class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-[#eae8f3] pl-4 pr-4"><p class="text-[#110e1b] text-sm font-medium">Semua</p></button>
+                <button id="filter-active" class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-[#eae8f3] pl-4 pr-4"><p class="text-[#110e1b] text-sm font-medium">Aktif</p></button>
+                <button id="filter-inactive" class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-[#eae8f3] pl-4 pr-4"><p class="text-[#110e1b] text-sm font-medium">Tidak Aktif</p></button>
+              </div>
             </div>
 
             <div id="customer-list"></div>

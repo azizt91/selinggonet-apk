@@ -58,6 +58,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
     }
 
+    // Sticky Header Management
+    function initializeStickyHeader() {
+        const stickyElement = document.querySelector('.search-filter-sticky');
+        if (!stickyElement) return;
+        
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.intersectionRatio < 1) {
+                    stickyElement.classList.add('is-sticky');
+                } else {
+                    stickyElement.classList.remove('is-sticky');
+                }
+            },
+            { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+        );
+        
+        observer.observe(stickyElement);
+    }
+
     function switchView(viewName) {
         // Initialize views if not already done
         if (!views.list || !views.detail) {
@@ -142,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial Setup
     // ===============================================
     initializeEventListeners();
+    initializeStickyHeader(); // Initialize sticky header behavior
     fetchData();
 
     // ===============================================
@@ -555,7 +575,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (filteredData.length === 0) {
-            invoiceList.innerHTML = `<p class="text-center text-gray-500 p-4">Tidak ada tagihan ditemukan.</p>`;
+            let message = 'Tidak ada tagihan ditemukan';
+            let submessage = 'Coba ubah filter atau kata kunci pencarian';
+            
+            if (currentTab === 'unpaid') {
+                message = 'Tidak ada tagihan belum dibayar';
+                submessage = searchTerm ? 'Tidak ada hasil untuk pencarian Anda' : 'Semua tagihan sudah dibayar atau belum ada tagihan';
+            } else if (currentTab === 'installment') {
+                message = 'Tidak ada tagihan cicilan';
+                submessage = searchTerm ? 'Tidak ada hasil untuk pencarian Anda' : 'Belum ada pelanggan yang membayar dengan cicilan';
+            } else if (currentTab === 'paid') {
+                message = 'Tidak ada tagihan yang dibayar';
+                submessage = searchTerm ? 'Tidak ada hasil untuk pencarian Anda' : 'Belum ada tagihan yang lunas';
+            }
+            
+            invoiceList.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 px-4">
+                    <img src="assets/no_data.png" alt="No Data" class="w-64 h-64 mb-4 opacity-80">
+                    <p class="text-center text-gray-500 text-base font-medium">${message}</p>
+                    <p class="text-center text-gray-400 text-sm mt-2">${submessage}</p>
+                </div>
+            `;
             return;
         }
 

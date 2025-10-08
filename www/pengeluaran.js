@@ -55,7 +55,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ===============================================
     console.log('Initializing event listeners and fetching data...');
     initializeEventListeners();
+    initializeStickyHeader(); // Initialize sticky header behavior
     await fetchData();
+
+    // ===============================================
+    // Sticky Header Management
+    // ===============================================
+    function initializeStickyHeader() {
+        const stickyElement = document.querySelector('.search-filter-sticky');
+        if (!stickyElement) return;
+        
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.intersectionRatio < 1) {
+                    stickyElement.classList.add('is-sticky');
+                } else {
+                    stickyElement.classList.remove('is-sticky');
+                }
+            },
+            { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+        );
+        
+        observer.observe(stickyElement);
+    }
 
     // ===============================================
     // Event Listeners Setup
@@ -195,11 +217,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (filteredData.length === 0) {
             const searchTerm = searchInput.value.trim();
+            let message = 'Tidak ada data pengeluaran';
+            let submessage = 'Tambahkan pengeluaran baru dengan tombol + di bawah';
+            
             if (searchTerm) {
-                expenseList.innerHTML = `<p class="text-center text-gray-500 p-4">Tidak ada pengeluaran yang cocok dengan pencarian "${searchTerm}".</p>`;
-            } else {
-                expenseList.innerHTML = `<p class="text-center text-gray-500 p-4">Tidak ada data pengeluaran untuk filter ini.</p>`;
+                message = 'Tidak ada pengeluaran ditemukan';
+                submessage = `Tidak ada hasil untuk pencarian "${searchTerm}"`;
             }
+            
+            expenseList.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 px-4">
+                    <img src="assets/no_data.png" alt="No Data" class="w-64 h-64 mb-4 opacity-80">
+                    <p class="text-center text-gray-500 text-base font-medium">${message}</p>
+                    <p class="text-center text-gray-400 text-sm mt-2">${submessage}</p>
+                </div>
+            `;
         } else {
             filteredData.forEach(item => {
                 const expenseItem = createExpenseItem(item);

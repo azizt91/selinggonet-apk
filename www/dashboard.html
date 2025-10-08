@@ -34,6 +34,18 @@
         #charts-wrapper {
             display: none;
         }
+        
+        /* Sticky Header Styles */
+        .header-sticky {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+        
+        .header-sticky.is-sticky {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
     </style>
     
     <style>
@@ -243,14 +255,14 @@
         }
     </style>
 </head>
-<body>
+<body style="overflow-x: hidden;">
     <div class="relative flex h-auto min-h-screen w-full flex-col bg-gradient-to-br from-slate-50 to-indigo-50" style='font-family: Manrope, "Noto Sans", sans-serif;'>
       
       <!-- Main Content with bottom padding for fixed navigation -->
       <div class="flex-1 pb-24">
         
-        <!-- Modern Header with gradient - mobile optimized -->
-        <header class="header-gradient shadow-lg">
+        <!-- Modern Header with gradient - mobile optimized - Sticky -->
+        <header class="header-gradient header-sticky shadow-lg">
           <div class="flex items-center justify-between px-4 py-6">
             <div class="flex items-center gap-4">
               <div id="user-avatar" class="w-12 h-12 rounded-full bg-cover bg-center bg-white/30 shadow-inner"></div>

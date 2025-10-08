@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initial Setup
     initializeEventListeners();
+    initializeStickyHeader(); // Initialize sticky header behavior
     checkURLParameters(); // Check for URL parameters first
     fetchInitialData();
 
@@ -72,6 +73,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 activeButtonText.classList.add('text-white');
             }
         }
+    }
+
+    // Sticky Header Management
+    function initializeStickyHeader() {
+        const stickyElement = document.querySelector('.search-filter-sticky');
+        if (!stickyElement) return;
+        
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.intersectionRatio < 1) {
+                    stickyElement.classList.add('is-sticky');
+                } else {
+                    stickyElement.classList.remove('is-sticky');
+                }
+            },
+            { threshold: [1], rootMargin: '-1px 0px 0px 0px' }
+        );
+        
+        observer.observe(stickyElement);
     }
 
     // View Management
@@ -214,7 +234,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderCustomerList(data) {
         customerList.innerHTML = '';
         if (!data || data.length === 0) {
-            customerList.innerHTML = `<p class="text-center text-gray-500 p-4">Tidak ada pelanggan ditemukan.</p>`;
+            customerList.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12 px-4">
+                    <img src="assets/no_data.png" alt="No Data" class="w-64 h-64 mb-4 opacity-80">
+                    <p class="text-center text-gray-500 text-base font-medium">Tidak ada pelanggan ditemukan</p>
+                    <p class="text-center text-gray-400 text-sm mt-2">Coba ubah filter atau kata kunci pencarian</p>
+                </div>
+            `;
             return;
         }
         data.forEach(profile => {

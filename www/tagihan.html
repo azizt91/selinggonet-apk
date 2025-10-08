@@ -28,10 +28,28 @@
       href="https://fonts.googleapis.com/css2?display=swap&family=Manrope%3Awght%40400%3B500%3B700%3B800&family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
     />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+        .search-filter-sticky {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background-color: #f9f8fb;
+        }
+        
+        .search-filter-sticky.is-sticky {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Override parent overflow for sticky to work */
+        #list-view {
+            overflow: visible !important;
+        }
+    </style>
 </head>
-<body>
+<body style="overflow-x: hidden;">
     <div
-      class="relative flex h-auto min-h-screen w-full flex-col bg-[#f9f8fb] group/design-root overflow-x-hidden"
+      class="relative flex h-auto min-h-screen w-full flex-col bg-[#f9f8fb] group/design-root"
       style='font-family: Manrope, "Noto Sans", sans-serif;'
     >
       <!-- Main Content with bottom padding for fixed navigation -->
@@ -49,23 +67,25 @@
             </div>
           </header>
         
-        <!-- Tabs -->
-        <div class="pb-3">
-          <div class="flex border-b border-[#d6d1e6] px-4 gap-4">
-            <button id="unpaid-tab" class="flex flex-1 flex-col items-center justify-center border-b-[3px] border-b-[#5324e0] text-[#110e1b] pb-[13px] pt-4 tab-button active">
-              <p class="text-sm font-bold leading-normal tracking-[0.015em]">Belum Dibayar</p>
-            </button>
-            <button id="installment-tab" class="flex flex-1 flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#625095] pb-[13px] pt-4 tab-button">
-              <p class="text-sm font-bold leading-normal tracking-[0.015em]">Cicilan</p>
-            </button>
-            <button id="paid-tab" class="flex flex-1 flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#625095] pb-[13px] pt-4 tab-button">
-              <p class="text-sm font-bold leading-normal tracking-[0.015em]">Dibayar</p>
-            </button>
+        <!-- Sticky Search & Tabs Container -->
+        <div class="search-filter-sticky">
+          <!-- Tabs -->
+          <div class="pb-3 bg-[#f9f8fb]">
+            <div class="flex border-b border-[#d6d1e6] px-4 gap-4">
+              <button id="unpaid-tab" class="flex flex-1 flex-col items-center justify-center border-b-[3px] border-b-[#5324e0] text-[#110e1b] pb-[13px] pt-4 tab-button active">
+                <p class="text-sm font-bold leading-normal tracking-[0.015em]">Belum Dibayar</p>
+              </button>
+              <button id="installment-tab" class="flex flex-1 flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#625095] pb-[13px] pt-4 tab-button">
+                <p class="text-sm font-bold leading-normal tracking-[0.015em]">Cicilan</p>
+              </button>
+              <button id="paid-tab" class="flex flex-1 flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#625095] pb-[13px] pt-4 tab-button">
+                <p class="text-sm font-bold leading-normal tracking-[0.015em]">Dibayar</p>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Search Bar -->
-        <div class="px-4 py-3">
+          <!-- Search Bar -->
+          <div class="px-4 py-3 bg-[#f9f8fb]">
           <label class="relative flex flex-col min-w-40 h-12 w-full">
             <div class="flex w-full flex-1 items-stretch rounded-full h-full overflow-hidden bg-[#eae8f3]">
               <div class="text-[#625095] flex items-center justify-center pl-4">
@@ -90,6 +110,7 @@
                 Total: <span id="total-display" class="text-green-600">Rp 0</span>
               </div>
             </div>
+          </div>
           </div>
         </div>
         
