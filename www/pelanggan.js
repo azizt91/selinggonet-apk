@@ -729,7 +729,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // UI Helpers
     function showLoading() {
-        customerList.innerHTML = Array(10).fill('').map(() => `<div class="skeleton-item flex items-center gap-4 bg-white px-4 min-h-[72px] py-2 justify-between border-b border-gray-100 animate-pulse"><div class="flex items-center gap-4"><div class="bg-gray-200 rounded-full h-14 w-14"></div><div class="flex flex-col justify-center gap-2"><div class="bg-gray-200 h-4 w-32 rounded"></div><div class="bg-gray-200 h-3 w-24 rounded"></div></div></div><div class="shrink-0"><div class="bg-gray-200 size-3 rounded-full"></div></div></div>`).join('');
+        customerList.innerHTML = Array(10).fill('').map(() => `<div class="skeleton-item flex items-center gap-4 bg-white px-4 min-h-[72px] py-2 justify-between border-b border-gray-100 animate-pulse"><div class="flex items-center gap-4 w-full"><div class="bg-gray-200 rounded-full h-14 w-14 shrink-0"></div><div class="flex flex-col justify-center gap-2 overflow-hidden flex-1"><div class="bg-gray-200 h-4 w-3/4 rounded"></div><div class="bg-gray-200 h-3 w-1/2 rounded"></div></div><div class="shrink-0 ml-auto"><div class="bg-gray-200 h-6 w-16 rounded-full"></div></div></div></div>`).join('');
     }
 
     async function loadUnpaidBills(profileId) {
