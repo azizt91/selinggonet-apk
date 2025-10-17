@@ -1,6 +1,7 @@
 // pelanggan.js (Supabase Version - FINAL & COMPLETE with Event Delegation)
 import { supabase } from './supabase-client.js';
 import { requireRole } from './auth.js';
+import { initializeCSVImport } from './csv-import.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     await requireRole('ADMIN');
@@ -28,6 +29,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeStickyHeader(); // Initialize sticky header behavior
     checkURLParameters(); // Check for URL parameters first
     fetchInitialData();
+    
+    // Initialize CSV Import
+    initializeCSVImport(fetchData);
 
     // URL Parameter Handler
     function checkURLParameters() {
@@ -101,6 +105,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.scrollTo(0, 0);
     }
 
+    // FAB Menu Toggle
+    function toggleFABMenu() {
+        const fabExpandedMenu = document.getElementById('fab-expanded-menu');
+        const fabBackdrop = document.getElementById('fab-backdrop');
+        const fabInfoIcon = document.getElementById('fab-info-icon');
+        const fabCloseIcon = document.getElementById('fab-close-icon');
+        const fabMainBtn = document.getElementById('fab-main-btn');
+
+        if (!fabExpandedMenu || !fabBackdrop || !fabInfoIcon || !fabCloseIcon || !fabMainBtn) {
+            console.error('FAB Menu elements not found!');
+            return;
+        }
+
+        const isExpanded = !fabExpandedMenu.classList.contains('hidden');
+
+        if (isExpanded) {
+            // Collapse menu
+            fabExpandedMenu.classList.add('hidden');
+            fabBackdrop.classList.add('hidden');
+            fabInfoIcon.style.display = 'block';
+            fabCloseIcon.style.display = 'none';
+            // HAPUS BARIS INI: fabMainBtn.classList.remove('rotate-45');
+        } else {
+            // Expand menu
+            fabExpandedMenu.classList.remove('hidden');
+            fabBackdrop.classList.remove('hidden');
+            fabInfoIcon.style.display = 'none';
+            fabCloseIcon.style.display = 'block';
+            // HAPUS BARIS INI: fabMainBtn.classList.add('rotate-45');
+        }
+    }
+
+    // Helper: Close FAB Menu
+    function closeFABMenu() {
+        const fabExpandedMenu = document.getElementById('fab-expanded-menu');
+        const fabBackdrop = document.getElementById('fab-backdrop');
+        const fabInfoIcon = document.getElementById('fab-info-icon');
+        const fabCloseIcon = document.getElementById('fab-close-icon');
+        const fabMainBtn = document.getElementById('fab-main-btn');
+
+        if (!fabExpandedMenu || fabExpandedMenu.classList.contains('hidden')) return;
+
+        fabExpandedMenu.classList.add('hidden');
+        fabBackdrop.classList.add('hidden');
+        fabInfoIcon.style.display = 'block';
+        fabCloseIcon.style.display = 'none';
+        // HAPUS BARIS INI: fabMainBtn.classList.remove('rotate-45');
+    }
+
+
     // Event Listeners using Event Delegation
     function initializeEventListeners() {
         document.body.addEventListener('click', (event) => {
@@ -123,8 +177,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
+            if (id === 'delete-customer-icon-btn') {
+                handleDeleteCustomer();
+                return;
+            }
+
             if (id === 'add-customer-btn') {
+                closeFABMenu(); // Close FAB menu if open
                 openAddForm();
+                return;
+            }
+
+            if (id === 'import-csv-btn') {
+                closeFABMenu(); // Close FAB menu if open
+                // CSV modal will be opened by csv-import.js
+                return;
+            }
+
+            if (id === 'fab-main-btn') {
+                toggleFABMenu();
+                return;
+            }
+
+            if (id === 'fab-backdrop') {
+                toggleFABMenu();
                 return;
             }
         });
@@ -325,6 +401,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('customer-status').value = profile.status || 'AKTIF';
         document.getElementById('customer-device').value = profile.device_type || '';
         document.getElementById('customer-ip').value = profile.ip_static_pppoe || '';
+        
+        // Populate installation date (convert ISO string to YYYY-MM-DD)
+        if (profile.installation_date) {
+            const installDate = new Date(profile.installation_date);
+            const formattedDate = installDate.toISOString().split('T')[0];
+            document.getElementById('customer-installation-date').value = formattedDate;
+        } else {
+            document.getElementById('customer-installation-date').value = '';
+        }
+        
+        document.getElementById('customer-latitude').value = profile.latitude || '';
+        document.getElementById('customer-longitude').value = profile.longitude || '';
         document.getElementById('edit-customer-email').value = userEmail || '';
         document.getElementById('edit-customer-password').value = '';
         
@@ -354,6 +442,102 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function handleEditFromDetailView() {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentEditingProfileId).single();
         if (profile) openEditForm(profile);
+    }
+
+    async function handleDeleteCustomer() {
+        if (!currentEditingProfileId) {
+            alert('Data pelanggan tidak ditemukan');
+            return;
+        }
+
+        // Fetch customer data for confirmation
+        const { data: profile, error: fetchError } = await supabase
+            .from('profiles')
+            .select('full_name, idpl')
+            .eq('id', currentEditingProfileId)
+            .single();
+
+        if (fetchError || !profile) {
+            alert('Gagal mengambil data pelanggan');
+            return;
+        }
+
+        // Confirmation dialog
+        const confirmMessage = `⚠️ PERHATIAN: Hapus Pelanggan\n\n` +
+            `Nama: ${profile.full_name}\n` +
+            `ID: ${profile.idpl}\n\n` +
+            `Tindakan ini akan menghapus:\n` +
+            `✓ Akun login (Supabase Auth)\n` +
+            `✓ Data profil pelanggan\n` +
+            `✓ Semua riwayat tagihan\n\n` +
+            `Data yang dihapus TIDAK DAPAT dikembalikan!\n\n` +
+            `Apakah Anda yakin ingin menghapus pelanggan ini?`;
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        // Double confirmation for safety
+        const finalConfirm = confirm('Konfirmasi terakhir: Yakin ingin melanjutkan penghapusan?');
+        if (!finalConfirm) {
+            return;
+        }
+
+        try {
+            // Show loading state
+            const deleteBtn = document.getElementById('delete-customer-icon-btn');
+            if (deleteBtn) deleteBtn.disabled = true;
+
+            // Step 1: Delete all invoices (cascade)
+            const { error: invoicesError } = await supabase
+                .from('invoices')
+                .delete()
+                .eq('customer_id', currentEditingProfileId);
+
+            if (invoicesError) {
+                throw new Error(`Gagal menghapus tagihan: ${invoicesError.message}`);
+            }
+
+            // Step 2: Delete profile
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', currentEditingProfileId);
+
+            if (profileError) {
+                throw new Error(`Gagal menghapus profil: ${profileError.message}`);
+            }
+
+            // Step 3: Delete from Supabase Auth (using Edge Function)
+            try {
+                const { error: authError } = await supabase.functions.invoke('delete-user', {
+                    body: { user_id: currentEditingProfileId }
+                });
+
+                if (authError) {
+                    console.warn('Warning: Gagal menghapus dari Auth (user mungkin sudah terhapus):', authError);
+                }
+            } catch (authDeleteError) {
+                console.warn('Warning: Auth delete error (continuing):', authDeleteError);
+                // Continue even if auth delete fails (user might not exist)
+            }
+
+            // Success notification
+            alert(`✅ Pelanggan "${profile.full_name}" berhasil dihapus!\n\nData yang dihapus:\n- Akun login\n- Profil pelanggan\n- Riwayat tagihan`);
+
+            // Reset state and refresh
+            currentEditingProfileId = null;
+            await fetchData();
+            switchView('list');
+
+        } catch (error) {
+            console.error('Error deleting customer:', error);
+            alert(`❌ Gagal menghapus pelanggan:\n${error.message}`);
+            
+            // Re-enable button
+            const deleteBtn = document.getElementById('delete-customer-icon-btn');
+            if (deleteBtn) deleteBtn.disabled = false;
+        }
     }
 
         async function openDetailView(profileId) {
@@ -445,6 +629,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
+    // Handle Location Section
+    const locationSection = document.getElementById('location-section');
+    const detailLocation = document.getElementById('detail-location');
+    const openMapsBtn = document.getElementById('open-maps-btn');
+    
+    if (profile.latitude && profile.longitude) {
+        locationSection?.classList.remove('hidden');
+        if (detailLocation) {
+            detailLocation.textContent = `${profile.latitude}, ${profile.longitude}`;
+        }
+        if (openMapsBtn) {
+            const mapsUrl = `https://www.google.com/maps?q=${profile.latitude},${profile.longitude}`;
+            openMapsBtn.href = mapsUrl;
+            openMapsBtn.classList.remove('hidden');
+        }
+    } else {
+        locationSection?.classList.add('hidden');
+    }
+    
     // Update label tanggal (tetap sama)
     const tanggalPasangLabel = document.evaluate("//p[contains(text(), 'TANGGAL PASANG') or contains(text(), 'TANGGAL CABUT')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
     if (tanggalPasangLabel) {
@@ -481,6 +684,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 photoUrl = 'https://sb-admin-pro.startbootstrap.com/assets/img/illustrations/profiles/profile-1.png';
             }
 
+            // Get latitude/longitude
+            const latitudeValue = document.getElementById('customer-latitude').value.trim();
+            const longitudeValue = document.getElementById('customer-longitude').value.trim();
+            
+            // Get installation date
+            const installationDateInput = document.getElementById('customer-installation-date').value;
+            let installationDate = null;
+            if (installationDateInput) {
+                installationDate = new Date(installationDateInput).toISOString();
+            }
+            
             const profileData = {
                 full_name: document.getElementById('customer-name').value,
                 address: document.getElementById('customer-address').value,
@@ -490,6 +704,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 device_type: document.getElementById('customer-device').value,
                 ip_static_pppoe: document.getElementById('customer-ip').value,
                 photo_url: photoUrl,
+                installation_date: installationDate,
+                latitude: latitudeValue ? parseFloat(latitudeValue) : null,
+                longitude: longitudeValue ? parseFloat(longitudeValue) : null,
                 // Churn Date Logic sesuai saran Gemini AI
                 churn_date: statusValue === 'NONAKTIF' ? (churnDateValue || new Date().toISOString().split('T')[0]) : null
             };
@@ -668,6 +885,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             console.log('Generated IDPL:', idpl);
 
+            // Get latitude/longitude
+            const latitudeValue = document.getElementById('customer-latitude').value.trim();
+            const longitudeValue = document.getElementById('customer-longitude').value.trim();
+            
+            // Get installation date (use input value or default to today)
+            const installationDateInput = document.getElementById('customer-installation-date').value;
+            let installationDate;
+            if (installationDateInput) {
+                // Convert from YYYY-MM-DD to ISO string
+                installationDate = new Date(installationDateInput).toISOString();
+            } else {
+                // Default to today
+                installationDate = new Date().toISOString();
+            }
+            
             const customerData = {
                 email: document.getElementById('customer-email').value,
                 password: document.getElementById('customer-password').value,
@@ -680,9 +912,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ip_static_pppoe: document.getElementById('customer-ip').value,
                 photo_url: photoUrl,
                 idpl: idpl,
-                installation_date: new Date().toISOString(),
+                installation_date: installationDate,
                 package_id: parseInt(document.getElementById('customer-package').value),
-                amount: parseFloat(document.getElementById('customer-bill').value)
+                amount: parseFloat(document.getElementById('customer-bill').value),
+                latitude: latitudeValue ? parseFloat(latitudeValue) : null,
+                longitude: longitudeValue ? parseFloat(longitudeValue) : null
             };
 
             if (!customerData.email || !customerData.password || !customerData.package_id) {

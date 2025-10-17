@@ -1,23 +1,17 @@
-// login.js (Supabase version with Persistent Login)
+// login.js (Supabase version)
 import { supabase } from './supabase-client.js';
-import { checkAutoLogin } from './auth.js';
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const errorMessage = document.getElementById('error-message');
 
-    // Check if user is already logged in
-    console.log('🔍 Checking for existing session...');
-    const isAlreadyLoggedIn = await checkAutoLogin();
+    // Check if a user is already logged in and redirect them
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+            handleRedirect(session.user);
+        } 
+    });
 
-    if (isAlreadyLoggedIn) {
-        console.log('✅ User already logged in, redirecting...');
-        return; // Exit early, user will be redirected by checkAutoLogin
-    }
-
-    console.log('📝 No existing session, showing login form');
-
-    // Initialize login form
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const submitButton = event.target.querySelector('button[type="submit"]');
@@ -30,8 +24,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setButtonLoading(submitButton, true);
 
         try {
-            console.log('🔑 Attempting login...');
-
             const { data, error } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: password,
@@ -42,12 +34,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (data.user) {
-                console.log('✅ Login successful for:', data.user.email);
                 await handleRedirect(data.user);
             }
 
         } catch (error) {
-            console.error('❌ Login error:', error.message);
             errorMessage.textContent = 'Email atau password salah. Silakan coba lagi.';
             errorMessage.classList.remove('hidden');
         } finally {
