@@ -6,7 +6,7 @@ let currentUser = null;
 let currentProfile = null;
 let genieacsSettings = {};
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Check authentication and require USER role
     currentUser = await requireRole('USER');
     if (!currentUser) return;
@@ -95,7 +95,7 @@ async function loadCurrentWiFiInfo(ipAddress) {
             return;
         }
 
-        const auth = (genieacsSettings.genieacs_username && genieacsSettings.genieacs_password) 
+        const auth = (genieacsSettings.genieacs_username && genieacsSettings.genieacs_password)
             ? { username: genieacsSettings.genieacs_username, password: genieacsSettings.genieacs_password }
             : null;
 
@@ -103,14 +103,14 @@ async function loadCurrentWiFiInfo(ipAddress) {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         const targetUrl = `${genieacsUrl}/devices`;
-        
+
         const queryUrl = `${targetUrl}?query=${encodeURIComponent(JSON.stringify({
             "$or": [
                 { "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress": ipAddress },
                 { "VirtualParameters.pppoeIP": ipAddress }
             ]
         }))}`;
-        
+
         const response = await fetch(proxyUrl, {
             method: 'POST',
             headers: {
@@ -130,7 +130,7 @@ async function loadCurrentWiFiInfo(ipAddress) {
         }
 
         const devices = await response.json();
-        
+
         if (devices && devices.length > 0) {
             const device = devices[0];
             let ssid = 'Tidak dapat diambil';
@@ -268,7 +268,7 @@ async function handleFormSubmit(e) {
                 .eq('id', logData.id);
 
             showNotification('✅ Perintah ganti WiFi berhasil dikirim! Perangkat akan diperbarui dalam 1-2 menit.', 'success');
-            
+
             // // Reload data - DISABLED to prevent timeout errors as device needs time to update
             // setTimeout(() => {
             //     loadUserData();
@@ -278,9 +278,9 @@ async function handleFormSubmit(e) {
             // Update log status with error
             await supabase
                 .from('wifi_change_logs')
-                .update({ 
+                .update({
                     status: 'failed',
-                    error_message: result.message 
+                    error_message: result.message
                 })
                 .eq('id', logData.id);
 
@@ -303,7 +303,7 @@ async function changeWiFiViaGenieACS(ipAddress, newSSID, newPassword) {
         }
 
         // Build auth object
-        const auth = (genieacsSettings.genieacs_username && genieacsSettings.genieacs_password) 
+        const auth = (genieacsSettings.genieacs_username && genieacsSettings.genieacs_password)
             ? { username: genieacsSettings.genieacs_username, password: genieacsSettings.genieacs_password }
             : null;
 
@@ -311,14 +311,15 @@ async function changeWiFiViaGenieACS(ipAddress, newSSID, newPassword) {
         let token = null; // Declare token here
         const { data: { session } } = await supabase.auth.getSession();
         token = session?.access_token; // Assign to the already declared token
-        
+
+        const targetUrl = `${genieacsUrl}/devices`;
         const queryUrl = `${targetUrl}?query=${encodeURIComponent(JSON.stringify({
             "$or": [
                 { "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress": ipAddress },
                 { "VirtualParameters.pppoeIP": ipAddress }
             ]
         }))}`;
-        
+
         const devicesResponse = await fetch(proxyUrl, {
             method: 'POST',
             headers: {
@@ -338,7 +339,7 @@ async function changeWiFiViaGenieACS(ipAddress, newSSID, newPassword) {
         }
 
         const devices = await devicesResponse.json();
-        
+
         if (!devices || devices.length === 0) {
             return { success: false, message: 'Device tidak ditemukan di GenieACS' };
         }
@@ -349,7 +350,7 @@ async function changeWiFiViaGenieACS(ipAddress, newSSID, newPassword) {
         if (newSSID) {
             const ssidPath = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.SSID';
             const ssidUrl = `${genieacsUrl}/devices/${deviceId}/tasks?timeout=3000&connection_request`;
-            
+
             const ssidResponse = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: {
@@ -377,7 +378,7 @@ async function changeWiFiViaGenieACS(ipAddress, newSSID, newPassword) {
         if (newPassword) {
             const passwordPath = 'InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.PreSharedKey.1.KeyPassphrase';
             const passwordUrl = `${genieacsUrl}/devices/${deviceId}/tasks?timeout=3000&connection_request`;
-            
+
             const passwordResponse = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: {
@@ -421,7 +422,7 @@ async function changeWiFiViaGenieACS(ipAddress, newSSID, newPassword) {
 
 async function loadConnectedDevices() {
     const devicesList = document.getElementById('devices-list');
-    
+
     try {
         devicesList.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Memuat perangkat...</p>';
 
@@ -432,13 +433,13 @@ async function loadConnectedDevices() {
 
         const ipAddress = currentProfile.ip_static_pppoe;
         const genieacsUrl = genieacsSettings.genieacs_url;
-        
+
         if (!genieacsUrl) {
             devicesList.innerHTML = '<p class="text-xs text-red-500 text-center py-4">URL GenieACS tidak dikonfigurasi</p>';
             return;
         }
 
-        const auth = (genieacsSettings.genieacs_username && genieacsSettings.genieacs_password) 
+        const auth = (genieacsSettings.genieacs_username && genieacsSettings.genieacs_password)
             ? { username: genieacsSettings.genieacs_username, password: genieacsSettings.genieacs_password }
             : null;
 
@@ -446,14 +447,14 @@ async function loadConnectedDevices() {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         const targetUrl = `${genieacsUrl}/devices`;
-        
+
         const queryUrl = `${targetUrl}?query=${encodeURIComponent(JSON.stringify({
             "$or": [
                 { "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress": ipAddress },
                 { "VirtualParameters.pppoeIP": ipAddress }
             ]
         }))}`;
-        
+
         const response = await fetch(proxyUrl, {
             method: 'POST',
             headers: {
@@ -473,7 +474,7 @@ async function loadConnectedDevices() {
         }
 
         const devices = await response.json();
-        
+
         if (!devices || devices.length === 0) {
             devicesList.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Device tidak ditemukan</p>';
             return;
@@ -485,12 +486,12 @@ async function loadConnectedDevices() {
         // Parse connected devices from InternetGatewayDevice.LANDevice.1.Hosts.Host
         try {
             const hosts = device.InternetGatewayDevice?.LANDevice?.['1']?.Hosts?.Host;
-            
+
             if (hosts) {
                 // Iterate through all host entries
                 for (const hostKey in hosts) {
                     const host = hosts[hostKey];
-                    
+
                     // Extract device info
                     const hostname = host.HostName?._value || 'Unknown';
                     const ipAddr = host.IPAddress?._value || '-';
@@ -562,7 +563,7 @@ async function loadChangeHistory() {
         if (error) throw error;
 
         const historyList = document.getElementById('history-list');
-        
+
         if (!data || data.length === 0) {
             historyList.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Belum ada riwayat perubahan</p>';
             return;
@@ -572,7 +573,7 @@ async function loadChangeHistory() {
             const date = new Date(log.changed_at).toLocaleString('id-ID');
             const statusColor = log.status === 'success' ? 'text-green-600' : log.status === 'failed' ? 'text-red-600' : 'text-yellow-600';
             const statusText = log.status === 'success' ? 'Berhasil' : log.status === 'failed' ? 'Gagal' : 'Diproses';
-            
+
             return `
                 <div class="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
                     <div class="flex-1">
@@ -597,7 +598,7 @@ function setLoading(isLoading) {
     const submitLoading = document.getElementById('submit-loading');
 
     submitBtn.disabled = isLoading;
-    
+
     if (isLoading) {
         submitText.classList.add('hidden');
         submitLoading.classList.remove('hidden');
@@ -614,14 +615,14 @@ function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.style.cssText = `position: fixed; top: 20px; right: 20px; background-color: ${bgColor}; color: white; padding: 15px 20px; border-radius: 8px; z-index: 1002; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); animation: slideInRight 0.3s ease; max-width: 90%;`;
     notification.innerHTML = `<div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 18px;">${icon}</span><span>${message}</span></div>`;
-    
+
     if (!document.getElementById('notification-styles')) {
         const style = document.createElement('style');
         style.id = 'notification-styles';
         style.textContent = `@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }`;
         document.head.appendChild(style);
     }
-    
+
     document.body.appendChild(notification);
     setTimeout(() => {
         if (notification.parentNode) {
