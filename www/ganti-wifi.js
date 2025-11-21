@@ -581,7 +581,14 @@ async function loadChangeHistory() {
                         <p class="text-xs text-gray-500">${date}</p>
                         ${log.error_message ? `<p class="text-xs text-red-600 mt-1">${log.error_message}</p>` : ''}
                     </div>
-                    <span class="text-xs font-semibold ${statusColor}">${statusText}</span>
+                    <div class="flex flex-col items-end gap-1">
+                        <span class="text-xs font-semibold ${statusColor}">${statusText}</span>
+                        <button onclick="deleteHistoryLog('${log.id}')" class="text-gray-400 hover:text-red-500 transition-colors p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -589,6 +596,25 @@ async function loadChangeHistory() {
     } catch (error) {
         console.error('Error loading history:', error);
         document.getElementById('history-list').innerHTML = '<p class="text-xs text-red-500 text-center py-4">Gagal memuat riwayat</p>';
+    }
+}
+
+async function deleteHistoryLog(id) {
+    if (!confirm('Apakah Anda yakin ingin menghapus riwayat ini?')) return;
+
+    try {
+        const { error } = await supabase
+            .from('wifi_change_logs')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        showNotification('✅ Riwayat berhasil dihapus', 'success');
+        loadChangeHistory();
+    } catch (error) {
+        console.error('Error deleting history:', error);
+        showNotification(`❌ Gagal menghapus riwayat: ${error.message}`, 'error');
     }
 }
 
